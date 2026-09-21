@@ -1,0 +1,177 @@
+# Continuous Deployment : build automatique des binaires à chaque merge vers main.
+#
+# Issue #45 : CD pour les binaires.
+# Déclenché à chaque push sur main (quand une PR dev → main est mergée).
+# Construit les binaires Linux + Windows, génère les sommes SHA-256,
+# et publie une release « nightly » (pré-release) avec les artefacts.
+#
+# Différence avec release.yml : release.yml est déclenché par tag v*
+# (version stable). Ce workflow ci est déclenché à chaque merge → main
+# et maintient une seule release « nightly » (l'ancienne est remplacée).
+name: CD (binaires)
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build-linux:
+    name: Build Linux
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout du dépôt
+        uses: actions/checkout@v4
+
+      - name: Installation de Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Installation des dépendances
+        run: npm ci
+
+      - name: Tests unitaires (garde-fou)
+        run: npm test
+
+      - name: Build .deb
+        run: npm run dist:linux:deb
+
+      - name: Build AppImage
+        run: npm run dist:linux:appimage
+
+      - name: Build electron-packager (Linux)
+        run: npm run dist:linux
+
+      - name: Génération des sommes SHA-256
+        run: |
+          cd dist
+          sha256sum *.deb *.AppImage > SHA256SUMS-linux.txt
+          cat SHA256SUMS-linux.txt
+
+      - name: Upload des artefacts Linux
+        uses: actions/upload-artifact@v4
+        with:
+          name: linux-builds
+          path: |
+            dist/*.deb
+            dist/*.AppImage
+            dist/IAO-linux-x64/
+            dist/SHA256SUMS-linux.txt
+          retention-days: 7
+
+  build-windows:
+    name: Build Windows
+    runs-on: windows-latest
+
+    steps:
+      - name: Checkout du dépôt
+        uses: actions/checkout@v4
+
+      - name: Installation de Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Installation des dépendances
+        run: npm ci
+
+      - name: Build .exe (electron-packager)
+        run: npm run dist:win
+
+      - name: Génération des sommes SHA-256
+        shell: pwsh
+        run: |
+          cd dist
+          Get-FileHash *.exe -Algorithm SHA256 | Format-List > SHA256SUMS-windows.txt
+          Get-Content SHA256SUMS-windows.txt
+
+      - name: Upload des artefacts Windows
+        uses: actions/upload-artifact@v4
+        with:
+          name: windows-builds
+          path: |
+            dist/IAO-win32-x64/
+            dist/SHA256SUMS-windows.txt
+          retention-days: 7
+
+  publish-nightly:
+    name: Publication release nightly
+    needs: [build-linux, build-windows]
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout du dépôt
+        uses: actions/checkout@v4
+
+      - name: Téléchargement des artefacts Linux
+        uses: actions/download-artifact@v4
+        with:
+          name: linux-builds
+          path: release-assets
+
+      - name: Téléchargement des artefacts Windows
+        uses: actions/download-artifact@v4
+        with:
+          name: windows-builds
+          path: release-assets
+
+      - name: Création du zip Windows
+        run: |
+          cd release-assets
+          zip -r "IAO-nightly-win32-x64.zip" IAO-win32-x64/
+          rm -rf IAO-win32-x64/
+
+      - name: Fusion des sommes SHA-256
+        run: |
+          cd release-assets
+          cat SHA256SUMS-linux.txt SHA256SUMS-windows.txt > SHA256SUMS.txt
+          rm SHA256SUMS-linux.txt SHA256SUMS-windows.txt
+          cat SHA256SUMS.txt
+
+      - name: Date du build
+        id: date
+        run: echo "date=$(date +'%Y-%m-%d')" >> "$GITHUB_OUTPUT"
+
+      - name: Suppression de l'ancienne release nightly
+        continue-on-error: true
+        run: |
+          gh release delete nightly --repo "$GITHUB_REPOSITORY" --yes --cleanup-tag || true
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Publication de la release nightly
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: nightly
+          name: IAO Nightly (${{ steps.date.outputs.date }})
+          generate_release_notes: true
+          draft: false
+          prerelease: true
+          files: |
+            release-assets/*
+          body: |
+            ## IAO Nightly — ${{ steps.date.outputs.date }}
+
+            Build automatique depuis `main` (commit ${{ github.sha }}).
+
+            Binaires Linux et Windows avec sommes de contrôle SHA-256.
+
+            ⚠️ Binaires non signés (voir issue #7) — Windows SmartScreen affichera un avertissement.
+
+            ⚠️ Version de développement : peut être instable. Pour une version stable, utiliser les releases taguées `v*`.
+
+            ### Installation
+
+            - **Linux** : installer le `.deb` avec `dpkg -i` ou utiliser l'AppImage
+            - **Windows** : dézipper `IAO-nightly-win32-x64.zip` et lancer `IAO.exe`
+
+            Vérifier l'intégrité avec `SHA256SUMS.txt`.
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
