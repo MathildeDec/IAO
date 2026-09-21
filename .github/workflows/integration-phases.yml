@@ -1,0 +1,124 @@
+name: Suivi des phases d'intégration
+
+on:
+  issues:
+    types: [opened, closed, reopened, labeled, unlabeled]
+  pull_request:
+    types: [opened, closed, reopened]
+  workflow_dispatch:
+
+permissions:
+  issues: read
+  pull-requests: read
+  contents: read
+
+jobs:
+  rapport-phases:
+    name: Rapport d'avancement par phase
+    runs-on: ubuntu-latest
+    if: github.actor != 'dependabot[bot]'
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Vérifier les fichiers de suivi
+        run: |
+          echo "## Vérification des fichiers de suivi" >> "$GITHUB_STEP_SUMMARY"
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+          for f in FEATURES.md CHANGES.md docs/PROJECT_CONTEXT.md; do
+            if [ -f "$f" ]; then
+              echo "✅ \`$f\` présent" >> "$GITHUB_STEP_SUMMARY"
+            else
+              echo "⚠️ \`$f\` manquant" >> "$GITHUB_STEP_SUMMARY"
+            fi
+          done
+
+      - name: Générer le rapport d'avancement
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const { data: openIssues } = await github.rest.issues.listForRepo({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              state: 'open',
+              per_page: 100
+            });
+
+            const { data: closedIssues } = await github.rest.issues.listForRepo({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              state: 'closed',
+              per_page: 100
+            });
+
+            const priorityLabels = ['P0-securite', 'P1-maintenance', 'P2-confort', 'P3-distribution'];
+            const priorityCounts = {};
+            for (const label of priorityLabels) {
+              priorityCounts[label] = openIssues.filter(i => i.labels.some(l => l.name === label)).length;
+            }
+
+            const noPriority = openIssues.filter(i =>
+              !i.labels.some(l => priorityLabels.includes(l.name)) &&
+              !i.labels.some(l => l.name === 'session-archive')
+            );
+
+            let prs = [];
+            try {
+              const prResult = await github.rest.pulls.list({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                state: 'open'
+              });
+              prs = prResult.data;
+            } catch (e) {
+              // ignore
+            }
+
+            const lines = [];
+            lines.push(`## Rapport d'avancement — ${context.repo.owner}/${context.repo.repo}`);
+            lines.push('');
+            lines.push(`**Date** : ${new Date().toISOString()}`);
+            lines.push(`**Déclencheur** : ${context.eventName}`);
+            lines.push('');
+            lines.push("### Vue d'ensemble");
+            lines.push('');
+            lines.push('| Métrique | Valeur |');
+            lines.push('|----------|--------|');
+            lines.push(`| Issues ouvertes | ${openIssues.length} |`);
+            lines.push(`| Issues closes | ${closedIssues.length} |`);
+            lines.push(`| PRs ouvertes | ${prs.length} |`);
+            lines.push('');
+
+            const activePriorities = priorityLabels.filter(l => priorityCounts[l] > 0);
+            if (activePriorities.length > 0) {
+              lines.push('### Issues ouvertes par priorité');
+              lines.push('');
+              lines.push('| Priorité | Nombre |');
+              lines.push('|----------|--------|');
+              for (const l of activePriorities) {
+                lines.push(`| ${l} | ${priorityCounts[l]} |`);
+              }
+              lines.push(`| Sans priorité | ${noPriority.length} |`);
+              lines.push('');
+            }
+
+            if (noPriority.length > 0) {
+              lines.push('### Issues sans priorité');
+              lines.push('');
+              for (const i of noPriority) {
+                lines.push(`- #${i.number}: ${i.title}`);
+              }
+              lines.push('');
+            }
+
+            if (prs.length > 0) {
+              lines.push('### PRs ouvertes');
+              lines.push('');
+              for (const p of prs) {
+                lines.push(`- #${p.number}: ${p.title} (${p.head.ref})`);
+              }
+              lines.push('');
+            }
+
+            const fs = require('fs');
+            fs.appendFileSync(process.env.GITHUB_STEP_SUMMARY, lines.join('\n') + '\n');
