@@ -255,13 +255,11 @@ async function run() {
   }
   await sleep(1500); // initApp, hydratation des icônes, premier rafraîchissement
 
-  // Petit utilitaire : appelle un canal IPC scheduler depuis la fenêtre réelle.
-  // NOTE : on passe par module.require('electron') et PAS require('electron') :
-  // après le chargement de la page, le loader AMD de Monaco REMPLACE le
-  // require de Node dans le renderer (« Synchronous require cannot resolve
-  // module 'electron' »). module.require reste le require CommonJS de Node.
+  // Issue #4 : contextIsolation: true — le renderer n'a plus accès à
+  // module.require('electron'). On utilise window.iaoAPI.ipcInvoke,
+  // exposé par preload.js.
   const ipc = (channel, ...args) => win.webContents.executeJavaScript(
-    'module.require(\'electron\').ipcRenderer.invoke(' + JSON.stringify(channel) +
+    'window.iaoAPI.ipcInvoke(' + JSON.stringify(channel) +
     (args.length ? ', ' + args.map(a => JSON.stringify(a)).join(', ') : '') + ')'
   );
 
@@ -292,7 +290,7 @@ async function run() {
   });
 
   // Compte éligible (jamais utilisé pour l'automatisation : lastAutomationAt=0)
-  // synchronisé via le VRAI canal IPC utilisé par le renderer (module.require :
+  // synchronisé via le VRAI canal IPC utilisé par le renderer (window.iaoAPI :
   // le require de la page est écrasé par le loader AMD de Monaco, cf. ipc()).
   // Synchronisé AVANT la création de la webview : c'est la liste des comptes
   // connus qui permet au scheduler d'identifier le profil d'une webview
@@ -303,7 +301,7 @@ async function run() {
     automation: { enabled: true, lastUsedAt: 0, lastAutomationAt: 0 }
   };
   await win.webContents.executeJavaScript(
-    'module.require(\'electron\').ipcRenderer.invoke(\'scheduler:sync-accounts\', ' + JSON.stringify([seededAccount]) + ')'
+    'window.iaoAPI.ipcInvoke(\'scheduler:sync-accounts\', ' + JSON.stringify([seededAccount]) + ')'
   );
 
   // B4 : création d'une <webview> dans la page réelle, sur une fixture locale.

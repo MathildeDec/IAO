@@ -2,12 +2,9 @@
 // Extrait tel quel : voir index.html pour le HTML, lib/*.js pour les modules purs.
 // Comportement identique au script inline d'origine (même portée globale).
 
-// require d'Electron sauvegardé par assets/pre-monaco.js AVANT le chargement du
-// loader AMD de Monaco (qui remplace window.require). L'ancien script inline
-// déclarait « const nodeRequire = window.require » avant loader.js ; le
-// partage explicite via window.__iaoNodeRequire rend le découpage en
-// fichiers externes sûr quel que soit l'ordre de chargement.
-const nodeRequire = window.__iaoNodeRequire || window.require;
+// Issue #4 : contextIsolation: true — le renderer n'a plus accès à Node.
+// Les APIs nécessaires sont exposées par preload.js via window.iaoAPI.
+// L'ancien mécanisme de sauvegarde du require Electron est supprimé.
 
   // escapeHtml() vient désormais de lib/escape-html.js (chantier F, chargé en
   // <script src> plus haut) — comportement identique, désormais testé par
@@ -47,34 +44,28 @@ const nodeRequire = window.__iaoNodeRequire || window.require;
       return;
     }
     try {
-      // Monaco (en mode Node) résout son chemin relatif au mauvais endroit dans
-      // l'app packagée. On calcule donc le chemin ABSOLU de Monaco à partir de
-      // l'emplacement réel d'index.html (valable en dev ET en .exe packagé).
+      // Issue #4 : le chemin absolu de Monaco est calculé par preload.js
+      // (window.iaoAPI.resolveMonacoBase) car le renderer n'a plus accès à
+      // Node's url/path modules.
       let vsBase = 'node_modules/monaco-editor/min/vs';
       try {
-        const _url = nodeRequire('url');
-        const _path = nodeRequire('path');
-        const appDir = _path.dirname(_url.fileURLToPath(window.location.href));
-        vsBase = _path.join(appDir, 'node_modules', 'monaco-editor', 'min', 'vs').replace(/\\/g, '/');
+        const resolved = window.iaoAPI.resolveMonacoBase();
+        if (resolved) vsBase = resolved;
       } catch (e) { console.warn('[editor] chemin absolu Monaco indisponible, repli relatif'); }
       window.require.config({ paths: { vs: vsBase } });
       window.require(
         ['vs/editor/editor.main'],
         function () {
-          // Monaco chargé : on restaure le require d'Electron, puis on crée l'éditeur.
-          window.require = nodeRequire;
           console.log('[editor] Monaco chargé OK');
           if (window.__initMonacoEditor) window.__initMonacoEditor();
         },
         function (err) {
           // Échec du chargement du module Monaco.
-          window.require = nodeRequire;
           console.error('[editor] échec require(editor.main):', err && (err.message || err));
           onMonacoUnavailable();
         }
       );
     } catch (e) {
-      window.require = nodeRequire;
       console.error('[editor] exception loadMonaco:', e && (e.message || e));
       onMonacoUnavailable();
     }
@@ -86,9 +77,9 @@ const nodeRequire = window.__iaoNodeRequire || window.require;
   }
 
   function initApp() {
-    // On utilise nodeRequire (le require d'Electron sauvegardé plus haut) car
-    // window.require peut encore pointer vers le loader AMD de Monaco à ce stade.
-    const { ipcRenderer } = nodeRequire('electron');
+    // Issue #4 : ipcRenderer n'est plus accessible directement (contextIsolation).
+    // window.iaoAPI.ipcInvoke est exposé par preload.js.
+    const ipcRenderer = { invoke: window.iaoAPI.ipcInvoke };
 
     const SERVICES = [
       { id: 'claude', name: 'Claude', url: 'https://claude.ai/new', cssClass: 'svc-claude' },

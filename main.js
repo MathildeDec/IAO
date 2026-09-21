@@ -55,8 +55,12 @@ function createWindow() {
     icon: path.join(__dirname, 'build', 'icon.png'),
     webPreferences: {
       webviewTag: true,
-      nodeIntegration: true,
-      contextIsolation: false
+      // Issue #4 : contextIsolation: true + preload = le renderer n'a plus
+      // accès direct à Node (require, ipcRenderer, fs…). Seules les APIs
+      // exposées par preload.js (window.iaoAPI) sont disponibles.
+      nodeIntegration: false,
+      contextIsolation: true,
+      preload: path.join(__dirname, 'preload.js')
     }
   });
 
