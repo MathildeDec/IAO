@@ -88,6 +88,19 @@
        teinte encore libre parmi les services. Meshy : vert lime officiel. */
     --suno: #f8441b; --suno-dim: rgba(248, 68, 27, 0.15);
     --meshy: #c5f955; --meshy-dim: rgba(197, 249, 85, 0.12);
+    /* Issue #42 : services additionnels */
+    --mistral: #ff7000; --mistral-dim: rgba(255, 112, 0, 0.15);
+    --deepseek: #4d6bfe; --deepseek-dim: rgba(77, 107, 254, 0.15);
+    --copilot: #6e40c9; --copilot-dim: rgba(110, 64, 201, 0.15);
+    --elicit: #5d3fd3; --elicit-dim: rgba(93, 63, 211, 0.15);
+    --notebooklm: #1a73e8; --notebooklm-dim: rgba(26, 115, 232, 0.15);
+    --wolfram: #dd1100; --wolfram-dim: rgba(221, 17, 0, 0.15);
+    --deepl: #0f2b46; --deepl-dim: rgba(15, 43, 70, 0.15);
+    --ideogram: #ee2a7b; --ideogram-dim: rgba(238, 42, 123, 0.15);
+    --kling: #00d4ff; --kling-dim: rgba(0, 212, 255, 0.15);
+    --runway: #6e56cf; --runway-dim: rgba(110, 86, 207, 0.15);
+    --pika: #a259ff; --pika-dim: rgba(162, 89, 255, 0.15);
+    --qwen: #615ced; --qwen-dim: rgba(97, 92, 237, 0.15);
     --radius: 14px; --radius-sm: 8px;
   }
 
@@ -254,6 +267,19 @@
   .svc-leonardo { background: var(--leonardo-dim); color: var(--leonardo); border-color: rgba(217,70,239,0.2); }
   .svc-suno { background: var(--suno-dim); color: var(--suno); border-color: rgba(248,68,27,0.2); }
   .svc-meshy { background: var(--meshy-dim); color: var(--meshy); border-color: rgba(197,249,85,0.2); }
+  /* Issue #42 : services additionnels */
+  .svc-mistral { background: var(--mistral-dim); color: var(--mistral); border-color: rgba(255,112,0,0.2); }
+  .svc-deepseek { background: var(--deepseek-dim); color: var(--deepseek); border-color: rgba(77,107,254,0.2); }
+  .svc-copilot { background: var(--copilot-dim); color: var(--copilot); border-color: rgba(110,64,201,0.2); }
+  .svc-elicit { background: var(--elicit-dim); color: var(--elicit); border-color: rgba(93,63,211,0.2); }
+  .svc-notebooklm { background: var(--notebooklm-dim); color: var(--notebooklm); border-color: rgba(26,115,232,0.2); }
+  .svc-wolfram { background: var(--wolfram-dim); color: var(--wolfram); border-color: rgba(221,17,0,0.2); }
+  .svc-deepl { background: var(--deepl-dim); color: var(--deepl); border-color: rgba(15,43,70,0.2); }
+  .svc-ideogram { background: var(--ideogram-dim); color: var(--ideogram); border-color: rgba(238,42,123,0.2); }
+  .svc-kling { background: var(--kling-dim); color: var(--kling); border-color: rgba(0,212,255,0.2); }
+  .svc-runway { background: var(--runway-dim); color: var(--runway); border-color: rgba(110,86,207,0.2); }
+  .svc-pika { background: var(--pika-dim); color: var(--pika); border-color: rgba(162,89,255,0.2); }
+  .svc-qwen { background: var(--qwen-dim); color: var(--qwen); border-color: rgba(97,92,237,0.2); }
   .svc-btn.cooldown-active { opacity: 0.4; filter: grayscale(50%); }
   .cooldown-btn { width: 100%; padding: 5px 4px; font-size: 10.5px; font-weight: 500; text-align: center; cursor: pointer; transition: all 0.2s; border-radius: 6px; border: 1px solid var(--border); background: transparent; color: var(--fg-muted); font-family: 'JetBrains Mono', monospace; }
   .cooldown-btn.active { background: var(--danger-dim); border-color: rgba(255, 77, 106, 0.3); color: var(--danger); }
@@ -500,6 +526,23 @@
   .svc-bg-leonardo { background: var(--leonardo); }
   .svc-bg-suno { background: var(--suno); }
   .svc-bg-meshy { background: var(--meshy); }
+  /* Issue #42 : services additionnels */
+  .svc-bg-mistral { background: var(--mistral); }
+  .svc-bg-deepseek { background: var(--deepseek); }
+  .svc-bg-copilot { background: var(--copilot); }
+  .svc-bg-elicit { background: var(--elicit); }
+  .svc-bg-notebooklm { background: var(--notebooklm); }
+  .svc-bg-wolfram { background: var(--wolfram); }
+  .svc-bg-deepl { background: var(--deepl); }
+  .svc-bg-ideogram { background: var(--ideogram); }
+  .svc-bg-kling { background: var(--kling); }
+  .svc-bg-runway { background: var(--runway); }
+  .svc-bg-pika { background: var(--pika); }
+  .svc-bg-qwen { background: var(--qwen); }
+
+  /* Issue #42 : style des checkboxes de sélection de services */
+  .service-select-item { display: flex; align-items: center; gap: 8px; cursor: pointer; font-size: 14px; }
+  .service-select-item input[type="checkbox"] { width: 16px; height: 16px; accent-color: var(--accent); }
   .sched-job__dot--accent { background: var(--accent); }
   .sched-subtitle--inline { font-weight: 400; font-size: 11px; }
   .account-avatar--sm { width: 24px; height: 24px; font-size: 10px; }
