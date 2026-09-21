@@ -1,0 +1,505 @@
+  /* ===== Polices locales (chantier D) =====
+     Google sert ces 3 familles en fonte VARIABLE : un seul .woff2 par sous-ensemble
+     couvre toute la plage de graisses, d'où `font-weight: 100 900` (le navigateur
+     clampe à l'axe réel de chaque fonte). On ne charge que les sous-ensembles
+     latin + latin-ext (suffisent pour le français), pas cyrillique/grec/vietnamien.
+     Chemins RELATIFS : résolus depuis assets/app.css (lot 8), valables en dev ET en .exe. */
+  @font-face {
+    font-family: 'Space Grotesk'; font-style: normal; font-weight: 100 900; font-display: swap;
+    src: url("fonts/SpaceGrotesk-latin.woff2") format("woff2");
+    unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+  }
+  @font-face {
+    font-family: 'Space Grotesk'; font-style: normal; font-weight: 100 900; font-display: swap;
+    src: url("fonts/SpaceGrotesk-latin-ext.woff2") format("woff2");
+    unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F, U+A720-A7FF;
+  }
+  @font-face {
+    font-family: 'Inter'; font-style: normal; font-weight: 100 900; font-display: swap;
+    src: url("fonts/Inter-latin.woff2") format("woff2");
+    unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+  }
+  @font-face {
+    font-family: 'Inter'; font-style: normal; font-weight: 100 900; font-display: swap;
+    src: url("fonts/Inter-latin-ext.woff2") format("woff2");
+    unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F, U+A720-A7FF;
+  }
+  @font-face {
+    font-family: 'JetBrains Mono'; font-style: normal; font-weight: 100 900; font-display: swap;
+    src: url("fonts/JetBrainsMono-latin.woff2") format("woff2");
+    unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+  }
+  @font-face {
+    font-family: 'JetBrains Mono'; font-style: normal; font-weight: 100 900; font-display: swap;
+    src: url("fonts/JetBrainsMono-latin-ext.woff2") format("woff2");
+    unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F, U+A720-A7FF;
+  }
+
+  /* Icônes SVG inline (remplace Font Awesome). Le <span class="ic"> est une boîte
+     carrée de 1em qui suit la taille de police du contexte (comme le faisait <i>) ;
+     le <svg> hérite de la couleur via currentColor. */
+  .ic { display: inline-flex; align-items: center; justify-content: center; width: 1em; height: 1em; line-height: 1; vertical-align: -0.125em; flex-shrink: 0; }
+  .ic > svg { width: 100%; height: 100%; display: block; fill: currentColor; }
+
+  :root {
+    /* ===== Palette par défaut (violet / rose) ===== */
+    --bg: #0b0817;                              /* theme-color officielle du site */
+    --bg-elevated: #120e24;                     /* panneaux (relevé sur le site) */
+    --bg-card: rgba(24, 18, 49, 0.6);           /* cartes #181231 */
+    --bg-card-hover: rgba(34, 26, 66, 0.8);
+    --border: rgba(44, 34, 85, 0.75);           /* #2c2255 */
+    --border-active: #4a3a7a;
+    --fg: #ece6f4;
+    --fg-muted: #a99fd6;                        /* texte atténué violet (relevé) */
+    --fg-dim: #6b5f90;
+    --accent: #8b5cf6;                          /* violet officiel IAO */
+    --accent-dim: rgba(139, 92, 246, 0.15);
+    --accent-glow: rgba(139, 92, 246, 0.35);
+    --rose: #f230aa;                            /* rose officiel IAO */
+    --rose-dim: rgba(242, 48, 170, 0.15);
+    /* Aurora — dégradés relevés tels quels sur le hero du site (+ cyan discret ajouté) */
+    --aurora-1: rgba(139, 92, 246, 0.18);       /* violet, halo haut-centre */
+    --aurora-2: rgba(242, 48, 170, 0.07);       /* rose, halo haut-droite */
+    --aurora-3: rgba(56, 189, 248, 0.05);       /* cyan discret (ajout) */
+    --danger: #ff4d6a;
+    --danger-dim: rgba(255, 77, 106, 0.15);
+    --warning: #ffb347;
+    --warning-dim: rgba(255, 179, 71, 0.15);
+    /* Statuts d'activité compte/onglet (lot 16/09/2026) — génériques comme
+       --danger/--warning ci-dessus, indépendants des couleurs de service.
+       --status-open reprend le cyan discret déjà utilisé dans l'aurore
+       (--aurora-3) pour rester dans la palette existante plutôt qu'ajouter
+       une teinte franchement nouvelle ; --status-idle est la seule teinte
+       verte du thème, réservée à cet usage (à ne pas confondre avec
+       --meshy, vert lime, propre au service Meshy AI). */
+    --status-open: #38bdf8;
+    --status-open-dim: rgba(56, 189, 248, 0.15);
+    --status-idle: #34d399;
+    --status-idle-dim: rgba(52, 211, 153, 0.15);
+    --claude: #d4a574; --claude-dim: rgba(212, 165, 116, 0.15);
+    --gemini: #4285f4; --gemini-dim: rgba(66, 133, 244, 0.15);
+    --chatgpt: #10a37f; --chatgpt-dim: rgba(16, 163, 127, 0.15);
+    --perplexity: #20b8cd; --perplexity-dim: rgba(32, 184, 205, 0.15);
+    --zeta: #b839f9; --zeta-dim: rgba(184, 57, 249, 0.15);
+    --grok: #c8ccd4; --grok-dim: rgba(200, 204, 212, 0.14);
+    --leonardo: #d946ef; --leonardo-dim: rgba(217, 70, 239, 0.15);
+    /* Suno : marque officiellement noir/blanc ; on reprend le pôle orange du
+       dégradé signature de leur app (rose #fd429c -> orange #f8441b), seule
+       teinte encore libre parmi les services. Meshy : vert lime officiel. */
+    --suno: #f8441b; --suno-dim: rgba(248, 68, 27, 0.15);
+    --meshy: #c5f955; --meshy-dim: rgba(197, 249, 85, 0.12);
+    --radius: 14px; --radius-sm: 8px;
+  }
+
+  /* ===== Thèmes alternatifs (lot 18/09/2026, FEATURES.md P2) =====
+     Appliqués via data-theme sur <html>. Le défaut « iao » est le thème
+     sombre violet/rose déjà défini dans :root ci-dessus. Les deux variantes
+     ci-dessous redéfinissent seulement les variables de fond/texte/bordures —
+     les couleurs de marque des services IA ne changent pas. */
+  [data-theme="dark"] {
+    --bg: #0d1117;
+    --bg-elevated: #161b22;
+    --bg-card: rgba(22, 27, 34, 0.8);
+    --bg-card-hover: rgba(30, 37, 46, 0.9);
+    --border: rgba(48, 54, 61, 0.75);
+    --border-active: #6e7681;
+    --fg: #e6edf3;
+    --fg-muted: #8b949e;
+    --fg-dim: #484f58;
+    --accent: #8b5cf6;
+    --accent-dim: rgba(139, 92, 246, 0.15);
+    --accent-glow: rgba(139, 92, 246, 0.35);
+    --rose: #f230aa;
+    --rose-dim: rgba(242, 48, 170, 0.15);
+    --aurora-1: rgba(139, 92, 246, 0.12);
+    --aurora-2: rgba(242, 48, 170, 0.05);
+    --aurora-3: rgba(56, 189, 248, 0.03);
+  }
+  [data-theme="light"] {
+    --bg: #f6f8fa;
+    --bg-elevated: #ffffff;
+    --bg-card: rgba(255, 255, 255, 0.9);
+    --bg-card-hover: rgba(243, 244, 246, 0.95);
+    --border: rgba(208, 215, 222, 0.75);
+    --border-active: #8c959f;
+    --fg: #1f2328;
+    --fg-muted: #656d76;
+    --fg-dim: #8c959f;
+    --accent: #8250df;
+    --accent-dim: rgba(130, 80, 223, 0.12);
+    --accent-glow: rgba(130, 80, 223, 0.2);
+    --rose: #bf3989;
+    --rose-dim: rgba(191, 57, 137, 0.1);
+    --aurora-1: rgba(130, 80, 223, 0.06);
+    --aurora-2: rgba(191, 57, 137, 0.03);
+    --aurora-3: rgba(56, 189, 248, 0.02);
+    --danger: #cf222e;
+    --danger-dim: rgba(207, 34, 46, 0.1);
+    --warning: #9a6700;
+    --warning-dim: rgba(154, 103, 0, 0.1);
+    --status-open: #0969da;
+    --status-open-dim: rgba(9, 105, 218, 0.1);
+    --status-idle: #1a7f37;
+    --status-idle-dim: rgba(26, 127, 55, 0.1);
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    font-family: 'Inter', sans-serif;
+    /* Fond "aurora" IAO : halos radiaux violet + rose (+ cyan discret)
+       superposés au fond sombre.
+       Fond CSS pur (aucune image) -> fonctionne en dev ET en .exe packagé.
+       Les webviews IA sont opaques : l'aurora ne déborde pas dans leur contenu. */
+    background-color: var(--bg);
+    background-image:
+      radial-gradient(80% 50% at 50% -10%, var(--aurora-1), transparent 70%),
+      radial-gradient(60% 45% at 92% 8%, var(--aurora-2), transparent 70%),
+      radial-gradient(55% 45% at 8% 25%, var(--aurora-3), transparent 70%);
+    background-attachment: fixed;
+    color: var(--fg);
+    height: 100vh;
+    overflow: hidden;
+    display: flex;
+  }
+
+  /* Layout Principal */
+  .dashboard {
+    width: 380px; min-width: 380px; height: 100vh;
+    border-right: 1px solid var(--border);
+    display: flex; flex-direction: column;
+    background: rgba(11, 8, 23, 0.72);
+    backdrop-filter: blur(16px); z-index: 2;
+    transition: width 0.3s ease, min-width 0.3s ease;
+  }
+  .dashboard.collapsed { width: 0; min-width: 0; border: none; overflow: hidden; }
+
+  .workspace-container {
+    flex: 1; position: relative; background: transparent; z-index: 1;
+    display: flex; flex-direction: column; min-width: 0;
+  }
+
+  ::-webkit-scrollbar { width: 6px; height: 6px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 4px; }
+
+  /* Header */
+  .header { padding: 24px; border-bottom: 1px solid var(--border); display: flex; align-items: center; justify-content: space-between; flex-shrink: 0; }
+  .header__brand { display: flex; align-items: center; gap: 14px; }
+  .header__icon { width: 42px; height: 42px; border-radius: 12px; background: linear-gradient(135deg, var(--rose), var(--accent)); display: flex; align-items: center; justify-content: center; font-size: 18px; color: #fff; box-shadow: 0 0 24px var(--accent-glow); animation: logoGlow 4.5s ease-in-out infinite; }
+  /* Pulsation douce du halo du logo (CSS pur, léger) — ambiance communauté */
+  @keyframes logoGlow {
+    0%, 100% { box-shadow: 0 0 22px var(--accent-glow); }
+    50%      { box-shadow: 0 0 34px var(--accent-glow), 0 0 12px var(--rose-dim); }
+  }
+  .header__title { font-family: 'Space Grotesk', sans-serif; font-size: 20px; font-weight: 700; }
+  .header__subtitle { font-size: 12px; color: var(--fg-muted); margin-top: 2px; }
+
+  /* Boutons */
+  .btn { display: inline-flex; align-items: center; gap: 8px; padding: 10px 16px; border: 1px solid var(--border); border-radius: var(--radius-sm); background: var(--bg-elevated); color: var(--fg); font-family: inherit; font-size: 13px; font-weight: 500; cursor: pointer; transition: all 0.2s; }
+  .btn:hover { background: var(--bg-card-hover); border-color: var(--border-active); }
+  .btn--primary { background: var(--accent); color: var(--bg); border-color: var(--accent); }
+  .btn--icon { padding: 8px; width: 32px; height: 32px; justify-content: center; }
+
+  /* Stats */
+  .stats { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; padding: 20px 24px; flex-shrink: 0; }
+  .stat-card { background: var(--bg-card); border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 16px; }
+  .stat-card__label { font-size: 10px; color: var(--fg-muted); text-transform: uppercase; letter-spacing: 1px; margin-bottom: 8px; font-weight: 600; }
+  .stat-card__value { font-family: 'Space Grotesk', sans-serif; font-size: 24px; font-weight: 700; }
+
+  /* Comptes */
+  .section-title { font-family: 'Space Grotesk', sans-serif; font-size: 12px; font-weight: 600; padding: 0 24px 16px; color: var(--fg-muted); text-transform: uppercase; letter-spacing: 1.5px; }
+  /* Ligne titre + bouton « Ajouter un compte » alignés (le bouton ne subit pas
+     l'uppercase/letter-spacing du titre). */
+  .section-title--accounts { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+  .section-title--accounts .btn--icon { width: 28px; height: 28px; letter-spacing: normal; }
+  .accounts-list { padding: 0 24px 24px; display: flex; flex-direction: column; gap: 16px; overflow-y: auto; }
+  .account-card { background: var(--bg-card); border: 1px solid var(--border); border-radius: var(--radius); padding: 18px; transition: all 0.4s cubic-bezier(0.34, 1.56, 0.64, 1); backdrop-filter: blur(8px); position: relative; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1); }
+  .account-card:hover { border-color: var(--border-active); transform: translateY(-4px); box-shadow: 0 25px 50px -12px rgba(0,0,0,0.5); }
+  .account-card.active { border-color: var(--accent); box-shadow: 0 0 0 1px var(--accent), 0 25px 50px -12px rgba(139, 92, 246, 0.30); background: rgba(139, 92, 246, 0.05); }
+  .account-card.active .account-avatar { box-shadow: 0 0 14px var(--accent-glow); } /* halo sur l'avatar du compte actif */
+  .account-header { display: flex; align-items: center; gap: 14px; margin-bottom: 18px; cursor: pointer; transition: margin-bottom 0.25s ease; }
+  .account-avatar { position: relative; width: 40px; height: 40px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-family: 'Space Grotesk', sans-serif; font-size: 14px; font-weight: 700; color: var(--bg); flex-shrink: 0; }
+  /* Badge de statut d'activité (lot 16/09/2026) : petit point sur l'avatar,
+     même esprit que .active-dot mais à 3 couleurs fixes plutôt qu'une seule.
+     Purement informatif — voir lib/activity-status.js pour ce qu'il reflète
+     (aucune lecture de contenu de service IA). */
+  .status-dot { position: absolute; right: -2px; bottom: -2px; width: 22px; height: 22px; border-radius: 50%; border: 3px solid var(--bg-elevated); }
+  .status-dot--open { background: var(--status-open); box-shadow: 0 0 6px var(--status-open); }
+  .status-dot--recent { background: var(--danger); }
+  .status-dot--idle { background: var(--status-idle); }
+  .account-info { flex: 1; min-width: 0; }
+  .account-name { font-size: 15px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; display: flex; align-items: center; gap: 8px; }
+  .active-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--accent); box-shadow: 0 0 8px var(--accent); animation: pulse 1.5s infinite; }
+  @keyframes pulse { 0% { opacity: 1; } 50% { opacity: 0.5; } 100% { opacity: 1; } }
+  .account-email { font-size: 11px; color: var(--fg-muted); font-family: 'JetBrains Mono', monospace; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; margin-top: 2px; }
+  .account-actions { display: flex; gap: 6px; }
+
+  /* Grille de Services */
+  /* Grille auto-adaptative : autant de colonnes de ≥85px que la carte peut en
+     contenir, étirées pour occuper toute la largeur. Un 8e/9e service ajouté à
+     SERVICES se placera tout seul (nouvelle ligne au besoin), sans retoucher ce CSS. */
+  .services-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(85px, 1fr)); gap: 10px; border-top: 1px solid var(--border); padding-top: 16px; }
+  .service-column { display: flex; flex-direction: column; align-items: stretch; gap: 8px; }
+  .svc-btn { width: 100%; padding: 8px 6px; border-radius: 20px; font-size: 12px; font-weight: 600; text-align: center; cursor: pointer; transition: all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1); border: 1px solid transparent; white-space: nowrap; }
+  .svc-claude { background: var(--claude-dim); color: var(--claude); border-color: rgba(212,165,116,0.2); }
+  .svc-gemini { background: var(--gemini-dim); color: var(--gemini); border-color: rgba(66,133,244,0.2); }
+  .svc-chatgpt { background: var(--chatgpt-dim); color: var(--chatgpt); border-color: rgba(16,163,127,0.2); }
+  .svc-perplexity { background: var(--perplexity-dim); color: var(--perplexity); border-color: rgba(32,184,205,0.2); }
+  .svc-zeta { background: var(--zeta-dim); color: var(--zeta); border-color: rgba(184,57,249,0.2); }
+  .svc-grok { background: var(--grok-dim); color: var(--grok); border-color: rgba(200,204,212,0.25); }
+  .svc-leonardo { background: var(--leonardo-dim); color: var(--leonardo); border-color: rgba(217,70,239,0.2); }
+  .svc-suno { background: var(--suno-dim); color: var(--suno); border-color: rgba(248,68,27,0.2); }
+  .svc-meshy { background: var(--meshy-dim); color: var(--meshy); border-color: rgba(197,249,85,0.2); }
+  .svc-btn.cooldown-active { opacity: 0.4; filter: grayscale(50%); }
+  .cooldown-btn { width: 100%; padding: 5px 4px; font-size: 10.5px; font-weight: 500; text-align: center; cursor: pointer; transition: all 0.2s; border-radius: 6px; border: 1px solid var(--border); background: transparent; color: var(--fg-muted); font-family: 'JetBrains Mono', monospace; }
+  .cooldown-btn.active { background: var(--danger-dim); border-color: rgba(255, 77, 106, 0.3); color: var(--danger); }
+
+  /* --- Vue compacte : repli/dépli de la grille de services par carte --- */
+  /* Animation de hauteur sans max-height arbitraire : la rangée de grille passe
+     de 1fr à 0fr et l'enfant (overflow hidden + min-height 0) se clippe à 0. */
+  .services-wrap { display: grid; grid-template-rows: 1fr; transition: grid-template-rows 0.25s ease; }
+  .services-inner { overflow: hidden; min-height: 0; }
+  .account-card.collapsed .services-wrap { grid-template-rows: 0fr; }
+  .account-card.collapsed .account-header { margin-bottom: 0; }
+  .collapse-chevron { color: var(--fg-dim); font-size: 12px; transition: transform 0.25s ease; }
+  .account-header:hover .collapse-chevron { color: var(--accent); }
+  .account-card.collapsed .collapse-chevron { transform: rotate(-90deg); }
+  /* Badge « N/7 disponibles » : visible uniquement carte repliée. Ambre dès
+     qu'au moins un service est en cooldown, pour rester repérable replié. */
+  .svc-summary { display: none; font-family: 'JetBrains Mono', monospace; font-size: 10.5px; color: var(--fg-muted); border: 1px solid var(--border); border-radius: 999px; padding: 3px 8px; flex-shrink: 0; }
+  .account-card.collapsed .svc-summary { display: inline-block; }
+  .svc-summary.has-cd { color: var(--warning); border-color: rgba(255, 179, 71, 0.35); }
+  #btnToggleAllCards .ic { transition: transform 0.25s ease; }
+  #btnToggleAllCards.all-collapsed .ic { transform: rotate(-90deg); }
+
+  /* Workspace */
+  .workspace-header { height: 56px; border-bottom: 1px solid var(--border); display: flex; align-items: center; padding: 0 16px; gap: 16px; background: rgba(11, 8, 23, 0.72); backdrop-filter: blur(16px); z-index: 10; flex-shrink: 0; }
+  .workspace-body { flex: 1; display: flex; overflow: hidden; }
+  
+  /* Éditeur & Explorateur */
+  .ide-panel { display: flex; width: 500px; min-width: 300px; max-width: 800px; border-right: 1px solid var(--border); }
+  .ide-panel.collapsed { flex: 0 0 0 !important; width: 0 !important; min-width: 0 !important; border: none; overflow: hidden; }
+  .file-explorer { width: 240px; min-width: 240px; border-right: 1px solid var(--border); padding: 16px; overflow-y: auto; }
+  .file-explorer.collapsed { flex: 0 0 0 !important; width: 0 !important; min-width: 0 !important; border: none; overflow: hidden; padding: 0; }
+  .file-item { padding: 8px 12px; border-radius: 6px; font-size: 13px; color: var(--fg-muted); cursor: pointer; display: flex; align-items: center; gap: 10px; }
+  .file-item:hover { background: var(--bg-card-hover); color: var(--fg); }
+  .file-item.active { background: var(--accent-dim); color: var(--accent); }
+  .file-item__relpath { font-size: 11px; color: var(--fg-dim); margin-left: auto; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 120px; }
+  .file-search-input { width: 100%; margin-bottom: 8px; padding: 6px 10px; background: var(--bg); border: 1px solid var(--border); border-radius: var(--radius-sm); color: var(--fg); font-size: 12px; font-family: 'Inter', sans-serif; }
+  .file-search-input:focus { outline: none; border-color: var(--accent); }
+  .file-search-input::placeholder { color: var(--fg-dim); }
+  .editor-container { flex: 1; display: flex; flex-direction: column; min-width: 0; overflow: hidden; }
+  .editor-tabs { height: 36px; border-bottom: 1px solid var(--border); display: flex; align-items: center; padding: 0 10px; background: var(--bg-elevated); font-size: 12px; color: var(--fg-muted); gap: 10px; }
+  #monacoContainer { flex: 1; min-width: 0; overflow: hidden; }
+
+  /* Zone IA : onglets + contenu (remplace l'ancienne vue scindée à 2 panneaux) */
+  .ai-area { flex: 1; display: flex; flex-direction: column; min-width: 0; overflow: hidden; }
+
+  .tabs-bar { display: flex; align-items: flex-end; gap: 4px; padding: 8px 10px 0; overflow-x: auto; overflow-y: hidden; border-bottom: 1px solid var(--border); background: rgba(11, 8, 23, 0.55); flex-shrink: 0; }
+  .tabs-bar::-webkit-scrollbar { height: 4px; }
+  .tab { display: flex; align-items: center; gap: 8px; padding: 8px 8px 8px 12px; border-radius: 10px 10px 0 0; background: var(--bg-card); border: 1px solid var(--border); border-bottom: none; cursor: grab; font-size: 12px; color: var(--fg-muted); white-space: nowrap; max-width: 220px; flex-shrink: 0; transition: background 0.15s, color 0.15s; }
+  .tab:hover { background: var(--bg-card-hover); color: var(--fg); }
+  .tab.active { background: var(--bg-elevated); color: var(--fg); border-color: var(--border-active); box-shadow: inset 0 2px 0 var(--accent); }
+  .tab__dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+  .tab__text { display: flex; flex-direction: column; overflow: hidden; line-height: 1.25; }
+  /* tab__label = 1re ligne (grasse) ; tab__acc = 2e ligne (petite, atténuée).
+     Lot 16/09/2026 : c'est désormais le nom du COMPTE qui occupe tab__label
+     (inversion demandée) -> passé de 600 à 700 pour un « gras » sans
+     ambiguïté ; tab__acc reçoit maintenant le nom du service. */
+  .tab__label { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 700; }
+  .tab__acc { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--fg-dim); font-size: 10px; }
+  /* Onglet non consulté depuis 5 min (lot 16/09/2026) : simple rappel visuel
+     calculé sur le focus LOCAL de l'onglet (lastFocusAt, mis à jour par
+     activateTab) — ne surveille jamais le contenu de la <webview>. */
+  .tab--idle { background: var(--warning-dim); border-color: rgba(255, 179, 71, 0.4); }
+  .tab--idle.active { background: var(--bg-elevated); box-shadow: inset 0 2px 0 var(--warning); }
+  /* Onglet clignotant : notification de fin de cooldown (lot 18/09/2026).
+     L'animation s'arrête dès que l'onglet devient actif (activateTab retire
+     la classe). Le rouge --rose attire l'œil sans être un danger. */
+  .tab--flash { animation: tab-flash 1.2s ease-in-out infinite; }
+  @keyframes tab-flash {
+    0%, 100% { box-shadow: inset 0 2px 0 transparent; }
+    50% { box-shadow: inset 0 2px 0 var(--rose), 0 0 8px var(--rose-dim); }
+  }
+  /* Glisser-déposer des onglets (lot 16/09/2026, HTML5 DnD natif) : curseur
+     "grab" posé directement sur la règle .tab ci-dessus. */
+  .tab--dragging { opacity: 0.45; }
+  .tab__close { display: flex; align-items: center; justify-content: center; width: 18px; height: 18px; border-radius: 50%; color: var(--fg-dim); flex-shrink: 0; }
+  .tab__close:hover { background: var(--danger-dim); color: var(--danger); }
+
+  .tabs-content { flex: 1; position: relative; overflow: hidden; min-width: 0; }
+  .tab-pane { position: absolute; inset: 0; display: none; flex-direction: column; min-width: 0; overflow: hidden; }
+  .tab-pane.active { display: flex; }
+  /* Barre d'actions d'un onglet ouvert (lot 17/09/2026, FEATURES.md P1) :
+     recharger / revenir à l'accueil du service / se déconnecter du profil.
+     Rangée fixe (flex-shrink:0) au-dessus de la <webview>, qui garde son
+     flex:1 défini plus bas -> se contente de la hauteur restante, aucun
+     changement nécessaire côté webview. */
+  .tab-toolbar { display: flex; align-items: center; justify-content: flex-end; gap: 4px; height: 32px; padding: 0 8px; flex-shrink: 0; background: var(--bg-elevated); border-bottom: 1px solid var(--border); }
+  .tab-toolbar__btn { display: flex; align-items: center; justify-content: center; width: 26px; height: 26px; border-radius: var(--radius-sm); color: var(--fg-muted); background: transparent; border: none; cursor: pointer; font-size: 13px; transition: background 0.15s, color 0.15s; }
+  .tab-toolbar__btn:hover { background: var(--bg-card-hover); color: var(--fg); }
+  .tab-toolbar__btn--danger:hover { background: var(--danger-dim); color: var(--danger); }
+  .tabs-empty { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; color: var(--fg-dim); gap: 16px; pointer-events: none; }
+  .tabs-empty .ic { font-size: 32px; color: var(--border-active); }
+  /* État de chargement d'un onglet (retiré à dom-ready : l'animation ne tourne
+     pas en continu, uniquement pendant la connexion). transform = composité GPU. */
+  .tab-loading { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 14px; color: var(--fg-muted); font-size: 13px; pointer-events: none; z-index: 5; }
+  .tab-spinner { width: 26px; height: 26px; border: 3px solid var(--border); border-top-color: var(--accent); border-radius: 50%; animation: spin 0.8s linear infinite; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  webview { width: 100%; height: 100%; border: none; display: inline-flex; flex: 1; }
+
+  .collapse-arrow { cursor: pointer; color: var(--fg-muted); transition: transform 0.3s; padding: 4px; }
+  .collapse-arrow:hover { color: var(--accent); }
+
+  /* Poignées de redimensionnement */
+  .resizer { flex: 0 0 6px; align-self: stretch; cursor: col-resize; position: relative; z-index: 15; background: transparent; }
+  .resizer::after { content: ''; position: absolute; top: 0; bottom: 0; left: 50%; width: 1px; transform: translateX(-50%); background: var(--border); transition: background 0.15s, width 0.15s; }
+  .resizer:hover::after, .resizer.dragging::after { width: 3px; background: var(--accent); box-shadow: 0 0 8px var(--accent-glow); }
+  .ide-panel.collapsed + .resizer-ide { display: none; }
+  .file-explorer.collapsed + .resizer-explorer { display: none; }
+  #resizeOverlay { position: fixed; inset: 0; z-index: 999; cursor: col-resize; display: none; }
+  #resizeOverlay.active { display: block; }
+
+  /* Palette & Modals */
+  .palette-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.6); backdrop-filter: blur(8px); z-index: 100; display: none; align-items: flex-start; justify-content: center; padding-top: 15vh; }
+  .palette-overlay.open { display: flex; }
+  .palette-box { width: 500px; background: var(--bg-elevated); border: 1px solid var(--border-active); border-radius: 16px; box-shadow: 0 25px 50px -12px rgba(0,0,0,0.8); overflow: hidden; }
+  .palette-input { width: 100%; padding: 20px 24px; background: transparent; border: none; border-bottom: 1px solid var(--border); color: var(--fg); font-size: 18px; outline: none; }
+  .palette-results { max-height: 300px; overflow-y: auto; padding: 8px; }
+  .palette-item { padding: 12px 16px; border-radius: 8px; cursor: pointer; display: flex; align-items: center; gap: 12px; }
+  .palette-item.selected { background: var(--accent-dim); }
+  .modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.7); backdrop-filter: blur(8px); z-index: 90; display: none; align-items: center; justify-content: center; }
+  .modal-overlay.open { display: flex; }
+  .modal { background: var(--bg-elevated); border: 1px solid var(--border); border-radius: var(--radius); padding: 32px; width: 440px; }
+  .modal__title { font-family: 'Space Grotesk', sans-serif; font-size: 20px; font-weight: 700; margin-bottom: 8px; }
+  .form-group { margin-bottom: 16px; }
+  .form-label { font-size: 12px; color: var(--fg-muted); display: block; margin-bottom: 8px; font-weight: 500; }
+  .form-input { width: 100%; padding: 12px 14px; background: var(--bg); border: 1px solid var(--border); border-radius: var(--radius-sm); color: var(--fg); font-family: 'JetBrains Mono', monospace; font-size: 13px; outline: none; }
+  .modal__actions { display: flex; gap: 10px; justify-content: flex-end; margin-top: 24px; }
+  /* --- Modale d'aide « Comprendre les IA disponibles » ---
+     Réutilise .modal-overlay/.modal ; hauteur bornée à la fenêtre (min 1000x600),
+     seule la LISTE scrolle -> lisible avec 9 services, et toujours correct si un
+     10e est ajouté (aucune hauteur fixe). */
+  .modal--help { width: 620px; max-width: calc(100vw - 48px); max-height: calc(100vh - 96px); display: flex; flex-direction: column; padding: 28px; }
+  .help-list { overflow-y: auto; margin-top: 18px; display: flex; flex-direction: column; gap: 12px; padding-right: 6px; }
+  .help-entry { background: var(--bg-card); border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 14px 16px; }
+  .help-entry__name { font-family: 'Space Grotesk', sans-serif; font-size: 15px; font-weight: 700; display: flex; align-items: center; gap: 8px; margin-bottom: 8px; }
+  .help-entry__dot { width: 9px; height: 9px; border-radius: 50%; flex-shrink: 0; }
+  .help-entry__line { font-size: 13px; line-height: 1.55; color: var(--fg); margin-top: 4px; }
+  .help-entry__label { color: var(--fg-muted); font-weight: 600; }
+
+  /* --- Ordonnanceur IA (chantier E) --- même famille visuelle que .modal--help. */
+  .modal--scheduler { width: 680px; max-width: calc(100vw - 48px); max-height: calc(100vh - 96px); display: flex; flex-direction: column; padding: 28px; }
+  .sched-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 16px; }
+  .sched-toggle { position: relative; display: inline-block; width: 44px; height: 24px; flex-shrink: 0; }
+  .sched-toggle input { opacity: 0; width: 0; height: 0; }
+  .sched-toggle__track { position: absolute; inset: 0; background: var(--border); border-radius: 999px; cursor: pointer; transition: background 0.2s; }
+  .sched-toggle input:checked + .sched-toggle__track { background: var(--accent); }
+  .sched-toggle__thumb { position: absolute; top: 2px; left: 2px; width: 20px; height: 20px; background: #fff; border-radius: 50%; transition: transform 0.2s; pointer-events: none; }
+  .sched-toggle input:checked ~ .sched-toggle__thumb { transform: translateX(20px); }
+  .sched-stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-bottom: 16px; }
+  .sched-stats .stat-card { padding: 10px 12px; }
+  .sched-stats .stat-card__value { font-size: 18px; }
+  .sched-config { display: grid; grid-template-columns: 1fr 1fr; gap: 10px 14px; margin-bottom: 10px; }
+  .sched-config .form-group { margin-bottom: 0; }
+  .sched-jobs { overflow-y: auto; max-height: 220px; border: 1px solid var(--border); border-radius: var(--radius-sm); margin-bottom: 12px; }
+  .sched-job { padding: 10px 12px; border-bottom: 1px solid var(--border); display: flex; align-items: flex-start; gap: 10px; }
+  .sched-job:last-child { border-bottom: none; }
+  .sched-job__dot { width: 9px; height: 9px; border-radius: 50%; margin-top: 5px; flex-shrink: 0; }
+  .sched-job__body { flex: 1; min-width: 0; }
+  .sched-job__title { font-size: 13px; font-weight: 600; }
+  .sched-job__meta { font-size: 11px; color: var(--fg-muted); margin-top: 2px; word-break: break-all; }
+  .sched-job__actions { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 6px; }
+  .sched-job__actions .btn { padding: 4px 10px; font-size: 11px; }
+  .sched-empty { padding: 16px; text-align: center; color: var(--fg-muted); font-size: 12px; }
+  .sched-log { background: var(--bg); border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 10px 12px; max-height: 120px; overflow-y: auto; font-family: 'JetBrains Mono', monospace; font-size: 11px; color: var(--fg-muted); }
+  .sched-log div { margin-bottom: 4px; }
+
+  .toast-container { position: fixed; top: 20px; right: 20px; z-index: 200; display: flex; flex-direction: column; gap: 10px; }
+  .toast { padding: 12px 18px; background: var(--bg-elevated); border: 1px solid var(--border); border-left: 3px solid var(--accent); border-radius: var(--radius-sm); font-size: 13px; box-shadow: 0 8px 32px rgba(0,0,0,0.4); animation: toastIn 0.3s ease; display: flex; align-items: center; gap: 10px; }
+  @keyframes toastIn { from { transform: translateX(100%); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
+
+  /* ===== Classes utilitaires (lot 9, 18/09/2026) : remplacement des styles inline ===== */
+  .text-accent { color: var(--accent); }
+  .text-rose { color: var(--rose); }
+  .text-warning { color: var(--warning); }
+  .text-muted { color: var(--fg-muted); }
+  .text-dim { color: var(--fg-dim); }
+  .hidden { display: none; }
+  .flex-1 { flex: 1; }
+  .flex-row { display: flex; }
+  .flex-row-gap-6 { display: flex; gap: 6px; }
+  .flex-row-gap-8 { display: flex; gap: 8px; }
+  .flex-col-gap-8 { display: flex; flex-direction: column; gap: 8px; }
+  .flex-col-gap-16 { display: flex; flex-direction: column; gap: 16px; }
+  .mb-6 { margin-bottom: 6px; }
+
+  /* Boutons variants */
+  .btn--danger { background: var(--danger); color: #fff; border-color: var(--danger); }
+  .btn--primary-accent { background: var(--accent); color: #fff; border-color: var(--accent); }
+  .btn--flex-sm { flex: 1; font-size: 11px; }
+  .btn--icon-sm { width: 24px; height: 24px; }
+
+  /* Modales : descriptions et sous-titres */
+  .modal__desc { color: var(--fg-muted); font-size: 13px; margin-bottom: 8px; }
+  .modal__subtitle { color: var(--fg-muted); font-size: 13px; margin-top: 4px; }
+  .modal__title--tight { margin-bottom: 2px; }
+  .modal--confirm { width: 420px; max-width: calc(100vw - 48px); }
+  .modal__actions--spaced { margin-top: 20px; }
+  .confirm-msg { color: var(--fg-muted); font-size: 13px; margin-top: 8px; }
+
+  /* Explorateur de fichiers */
+  .explorer-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; }
+  .explorer-title { font-size: 14px; font-weight: 600; }
+
+  /* Ordonnanceur : sous-titres et labels de section */
+  .sched-subtitle { color: var(--fg-muted); font-size: 12px; }
+  .sched-dirs { font-size: 11px; color: var(--fg-dim); margin: -6px 0 14px; display: grid; gap: 2px; }
+  .sched-section-label { font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 1px; color: var(--fg-muted); margin-bottom: 8px; }
+  .sched-jobs--projects { margin-bottom: 12px; }
+
+  /* Réglages */
+  .settings-body { margin-top: 20px; display: flex; flex-direction: column; gap: 16px; }
+  .settings-label { display: block; font-size: 13px; font-weight: 600; margin-bottom: 4px; }
+  .settings-input { width: 80px; padding: 6px 8px; background: var(--bg); border: 1px solid var(--border); color: var(--fg); border-radius: 6px; font-size: 13px; }
+  .settings-select { padding: 6px 8px; background: var(--bg); border: 1px solid var(--border); color: var(--fg); border-radius: 6px; font-size: 13px; }
+  .settings-hint { font-size: 12px; color: var(--fg-faint); margin-left: 8px; }
+  .settings-checkboxes { display: flex; flex-direction: column; gap: 8px; }
+  .settings-checkbox-label { display: flex; align-items: center; gap: 8px; font-size: 13px; cursor: pointer; }
+  /* ===== Classes pour styles dynamiques (lot 9, 18/09/2026) ===== */
+  .monaco-loading { padding: 14px; font-size: 12px; color: var(--fg-dim); font-family: 'JetBrains Mono', monospace; }
+  .fallback-editor { display: flex; flex-direction: column; height: 100%; }
+  .fallback-editor__warning { padding: 6px 12px; font-size: 11px; color: var(--warning); background: rgba(255,179,71,0.12); border-bottom: 1px solid var(--border); }
+  .fallback-editor__textarea { flex: 1; width: 100%; resize: none; border: none; outline: none; padding: 14px; background: var(--bg); color: var(--fg); font-family: 'JetBrains Mono', monospace; font-size: 13px; line-height: 1.6; tab-size: 2; }
+  .tabs-empty--full { text-align: center; padding: 40px 20px; color: var(--fg-dim); display: flex; flex-direction: column; align-items: center; gap: 16px; }
+  .file-list-empty { color: var(--fg-dim); font-size: 12px; padding: 8px 12px; }
+  .file-icon-dim { color: var(--fg-dim); }
+  .help-entry__line--muted { color: var(--fg-muted); }
+  .sched-empty-log { color: var(--fg-dim); }
+  .sched-task-actions { margin-top: 4px; }
+  .sched-task-title { font-size: 12px; }
+  .sched-task-status { font-weight: 600; }
+  .sched-task-empty { padding: 6px 12px; color: var(--fg-dim); font-size: 11px; }
+  .sched-job--task { padding: 6px 12px; }
+  .sched-project-actions { padding: 8px 12px; }
+  .sched-create-btn { margin-left: 8px; padding: 2px 8px; font-size: 11px; }
+  .sched-task-btn { margin-left: 6px; padding: 2px 8px; font-size: 11px; }
+  .sched-result-pre { white-space: pre-wrap; word-wrap: break-word; max-height: 400px; overflow-y: auto; font-size: 12px; padding: 8px; background: var(--bg-card); border-radius: 6px; }
+  .icon-danger { color: var(--danger); }
+  /* Service-specific background colors (lot 9) */
+  .svc-bg-claude { background: var(--claude); }
+  .svc-bg-chatgpt { background: var(--chatgpt); }
+  .svc-bg-gemini { background: var(--gemini); }
+  .svc-bg-zeta { background: var(--zeta); }
+  .svc-bg-perplexity { background: var(--perplexity); }
+  .svc-bg-grok { background: var(--grok); }
+  .svc-bg-leonardo { background: var(--leonardo); }
+  .svc-bg-suno { background: var(--suno); }
+  .svc-bg-meshy { background: var(--meshy); }
+  .sched-job__dot--accent { background: var(--accent); }
+  .sched-subtitle--inline { font-weight: 400; font-size: 11px; }
+  .account-avatar--sm { width: 24px; height: 24px; font-size: 10px; }
+  .sched-job__dot--mt3 { margin-top: 3px; }
+  .sched-job__dot--mt5 { margin-top: 5px; }
+  .sched-subtitle--inline { color: var(--fg-muted); font-weight: 400; font-size: 11px; }

@@ -1,0 +1,104 @@
+{
+  "name": "iao",
+  "version": "1.0.0",
+  "description": "IAO - gestionnaire multi-comptes IA (Electron, Windows/Linux)",
+  "main": "main.js",
+  "author": "X'o-noth",
+  "license": "ISC",
+  "type": "commonjs",
+  "scripts": {
+    "start": "electron .",
+    "start:linux-dev": "electron . --no-sandbox",
+    "test": "node --test",
+    "test:electron": "xvfb-run -a electron --no-sandbox test-electron/popups-continue.js",
+    "dist:win": "electron-packager . \"IAO\" --platform=win32 --arch=x64 --out=dist --overwrite --prune=true --app-version=1.0.0 --asar.unpack=**/monaco-editor/** --ignore=\"monaco-editor/(dev|esm|min-maps)\" --ignore=\"monaco-editor/(CHANGELOG|ThirdPartyNotices|README)\" --ignore=\"editor\\.main\\.nls\\.[a-z-]+\\.js\" --ignore=\"^/(README\\.md|CLAUDE\\.md|FEATURES\\.md|\\.gitignore)$\" --ignore=\"^/docs$\" --ignore=\"^/installer$\" --ignore=\"^/test$\" --ignore=\"^/test-electron$\" --ignore=\"^/install\\.(sh|bat)$\" && node scripts/prune-locales.js",
+    "dist:linux": "electron-packager . \"IAO\" --platform=linux --arch=x64 --out=dist --overwrite --prune=true --app-version=1.0.0 --asar.unpack=**/monaco-editor/** --ignore=\"monaco-editor/(dev|esm|min-maps)\" --ignore=\"monaco-editor/(CHANGELOG|ThirdPartyNotices|README)\" --ignore=\"editor\\.main\\.nls\\.[a-z-]+\\.js\" --ignore=\"^/(README\\.md|CLAUDE\\.md|FEATURES\\.md|\\.gitignore)$\" --ignore=\"^/docs$\" --ignore=\"^/installer$\" --ignore=\"^/test$\" --ignore=\"^/test-electron$\" --ignore=\"^/install\\.(sh|bat)$\" && node scripts/prune-locales.js",
+    "dist:linux:appimage": "electron-builder --linux AppImage",
+    "dist:linux:deb": "electron-builder --linux deb",
+    "install:linux": "bash install.sh",
+    "uninstall:linux": "bash install.sh --uninstall",
+    "install:windows": "install.bat",
+    "uninstall:windows": "install.bat /uninstall"
+  },
+  "keywords": [],
+  "devDependencies": {
+    "@electron/packager": "^20.0.3",
+    "electron": "^43.1.1",
+    "electron-builder": "^26.15.3"
+  },
+  "dependencies": {
+    "monaco-editor": "^0.45.0"
+  },
+  "build": {
+    "appId": "com.aimanager.workbench",
+    "productName": "IAO",
+    "directories": {
+      "output": "dist"
+    },
+    "files": [
+      "**/*",
+      "!docs/**",
+      "!installer/**",
+      "!install.sh",
+      "!install.bat",
+      "!README.md",
+      "!CLAUDE.md",
+      "!FEATURES.md",
+      "!test/**",
+      "!test-electron/**",
+      "!dist/**",
+      "!**/node_modules/monaco-editor/dev/**",
+      "!**/node_modules/monaco-editor/esm/**",
+      "!**/node_modules/monaco-editor/min-maps/**",
+      "!**/node_modules/monaco-editor/CHANGELOG.md",
+      "!**/node_modules/monaco-editor/ThirdPartyNotices.txt",
+      "!**/node_modules/monaco-editor/README.md",
+      "!**/node_modules/monaco-editor/min/vs/editor/editor.main.nls.*.js"
+    ],
+    "asar": true,
+    "asarUnpack": [
+      "**/node_modules/monaco-editor/**"
+    ],
+    "win": {
+      "target": "portable"
+    },
+    "portable": {
+      "artifactName": "IAO-${version}.exe"
+    },
+    "linux": {
+      "target": [
+        "AppImage",
+        "deb"
+      ],
+      "category": "Utility;Network;Development",
+      "icon": "build/icon.png",
+      "synopsis": "Gestionnaire multi-comptes IA",
+      "description": "Utiliser plusieurs services d'IA web avec plusieurs comptes isolés, dans des onglets intégrés.",
+      "desktop": {
+        "entry": {
+          "Name": "IAO",
+          "GenericName": "Gestionnaire multi-comptes IA",
+          "Keywords": "IA;AI;Claude;ChatGPT;Gemini;Perplexity;Grok;Suno;Meshy;Leonardo;",
+          "StartupWMClass": "IAO"
+        }
+      },
+      "artifactName": "IAO-${version}.${ext}",
+      "maintainer": "X'o-noth <deusyv@gmail.com>"
+    },
+    "deb": {
+      "packageName": "iao",
+      "priority": "optional",
+      "depends": [
+        "libgtk-3-0",
+        "libnotify4",
+        "libnss3",
+        "libxss1",
+        "libxtst6",
+        "xdg-utils",
+        "libatspi2.0-0",
+        "libsecret-1-0"
+      ]
+    }
+  },
+  "homepage": "https://github.com/MathildeDec/IAO"
+}

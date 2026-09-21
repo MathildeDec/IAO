@@ -1,0 +1,362 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<!-- CSP stricte (lot 6 + lot 8 + lot 9, 18/09/2026) : plus aucun script/gestionnaire inline
+     (JS extrait vers assets/app.js + assets/pre-monaco.js), tout est local.
+     Lot 8 : le bloc style est extrait vers assets/app.css, chargé par <link>.
+     Lot 9 : TOUS les attributs style="..." inline du HTML et de app.js sont migrés
+     vers des classes CSS. style-src 'unsafe-inline' subsiste UNIQUEMENT parce que
+     Monaco Editor (node_modules/monaco-editor) crée des éléments avec des attributs
+     style="..." en interne, bloqués par CSP sans 'unsafe-inline'. Notre propre code
+     n'utilise plus aucun style inline (vérifié par test/csp-static.test.js).
+     worker-src 'self' blob: est requis par Monaco, qui crée ses web workers
+     via des URL blob: (sans cela, repli sur le thread principal). -->
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self'; worker-src 'self' blob:; style-src 'self' 'unsafe-inline'; font-src 'self'; img-src 'self' data:">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>IAO</title>
+<!-- Polices et icônes 100% LOCALES (chantier D) : plus aucun CDN externe.
+     - Polices : @font-face ci-dessous, fichiers .woff2 dans assets/fonts/.
+     - Icônes  : SVG inline via assets/icons.js (sous-ensemble Font Awesome).
+     Objectif : l'app s'affiche identiquement hors-ligne / réseau filtré, et on
+     supprime tout prérequis de whitelist CDN pour une future CSP stricte. -->
+<script src="assets/icons.js"></script>
+<!-- escapeHtml() : extrait vers lib/ (chantier F) pour être testable via
+     `node --test` sans navigateur. Chargé ici (nodeIntegration:true : `window`
+     et `module` existent tous les deux) pour rester disponible globalement
+     avant le script principal, qui l'utilise dès son initialisation. -->
+<script src="lib/escape-html.js"></script>
+<!-- compareAccountNames / getAccountActivityStatus / isTabIdle : lot « tri +
+     statuts d'activité » du 16/09/2026 — extraites vers lib/ dès l'écriture
+     (invariant 11) pour être testables par `node --test`. Aucune de ces
+     fonctions ne lit le contenu d'une <webview> de service ni ne pilote une
+     action dessus : affichage pur, voir lib/activity-status.js. -->
+<script src="lib/activity-status.js"></script>
+<!-- tabsForAccount / buildDisconnectWarning : lot « Actions sur un onglet
+     ouvert » du 17/09/2026 — extraites vers lib/ dès l'écriture (invariant
+     11) pour être testables par `node --test`. -->
+<script src="lib/tab-actions.js"></script>
+<!-- filterFiles / flattenFileTree : lot « Recherche dans l'explorateur » du
+     18/09/2026 — extraites vers lib/ dès l'écriture (invariant 11) pour être
+     testables par `node --test`. -->
+<script src="lib/file-search.js"></script>
+<!-- cooldownKey / getNewlyExpiredCooldowns / snapshotActiveCooldowns : lot
+     « Notification fin de cooldown » du 18/09/2026 — extraites vers lib/ dès
+     l'écriture (invariant 11) pour être testables par `node --test`. -->
+<script src="lib/cooldown-notify.js"></script>
+<!-- CLAUDE_SELECTORS / detectQuotaMessage / buildClaudeDetectionScript /
+     buildPromptInjectionScript / buildFileUploadScript / parseClaudeResponse /
+     buildResponseCollectionScript : lot « Adaptateur Claude.ai » du
+     18/09/2026 — extraites vers lib/ dès l'écriture (invariant 11) pour
+     être testables par `node --test`. Fonctions pures de génération de
+     scripts JS et de parsing — aucune dépendance au DOM ni à Electron. -->
+<script src="lib/claude-adapter.js"></script>
+<!-- DEFAULT_SETTINGS/normalizeSettings/normalizeEditorFontSize/normalizeTheme/
+     normalizeWordWrap/normalizeBoolean/settingsChanged : lot « Panneau de
+     réglages » du 18/09/2026 — extraites vers lib/ dès l'écriture (invariant 11). -->
+<script src="lib/settings.js"></script>
+<!-- Feuille de style extraite d'index.html (lot 8, 18/09/2026) :
+     tout le CSS vit désormais dans assets/app.css, chargé par <link>.
+     Les chemins des polices ont été ajustés (url("fonts/...") ) car la
+     feuille réside dans assets/. Aucun style inline ne subsiste → la CSP
+     peut passer de style-src 'self' 'unsafe-inline' à style-src 'self'. -->
+<link rel="stylesheet" href="assets/app.css">
+</head>
+<body>
+
+<div class="toast-container" id="toastContainer"></div>
+<div id="resizeOverlay"></div>
+
+<!-- Palette -->
+<div class="palette-overlay" id="paletteOverlay">
+  <div class="palette-box">
+    <input type="text" class="palette-input" id="paletteInput" placeholder="Rechercher un compte ou une IA..." data-input-action="filterPalette">
+    <div class="palette-results" id="paletteResults"></div>
+  </div>
+</div>
+
+<!-- Dashboard -->
+<aside class="dashboard" id="dashboard">
+  <header class="header">
+    <div class="header__brand">
+      <div class="header__icon"><span class="ic" data-icon="bolt"></span></div>
+      <div>
+        <div class="header__title">IAO</div>
+        <div class="header__subtitle">Ctrl+K</div>
+      </div>
+    </div>
+    <div class="collapse-arrow" data-action="ui-toggleDashboard" title="Réduire"><span class="ic" data-icon="chevron-left"></span></div>
+  </header>
+
+  <div class="stats">
+    <div class="stat-card"><div class="stat-card__label">Comptes actifs</div><div class="stat-card__value text-accent" id="statActive">0</div></div>
+    <div class="stat-card"><div class="stat-card__label">IA Disponibles</div><div class="stat-card__value text-rose" id="statAvailable">0</div></div>
+  </div>
+
+  <div class="section-title section-title--accounts">
+    <span>Comptes enregistrés</span>
+    <div class="flex-row-gap-6">
+      <button class="btn btn--icon" id="btnToggleAllCards" data-action="ui-toggleAllCards" title="Tout replier / Tout déplier"><span class="ic" data-icon="chevron-down"></span></button>
+      <button class="btn btn--icon" data-action="ui-exportAccountsToFile" title="Exporter les comptes (JSON)"><span class="ic" data-icon="file-export"></span></button>
+      <button class="btn btn--icon" data-action="ui-importAccountsFromFile" title="Importer des comptes (JSON)"><span class="ic" data-icon="file-import"></span></button>
+      <button class="btn btn--icon" data-action="ui-openModal" title="Ajouter un compte"><span class="ic" data-icon="plus"></span></button>
+    </div>
+  </div>
+  <div class="accounts-list" id="accountsList"></div>
+</aside>
+
+<!-- Workspace -->
+<main class="workspace-container">
+  <div class="workspace-header">
+    <button class="btn btn--icon hidden" id="btnShowDashboard" data-action="ui-toggleDashboard" title="Afficher les comptes"><span class="ic" data-icon="chevron-right"></span></button>
+    <button class="btn btn--icon" data-action="ui-toggleExplorer" title="Explorateur"><span class="ic" data-icon="folder-tree"></span></button>
+    <button class="btn btn--icon" data-action="ui-toggleIdePanel" title="Éditeur"><span class="ic" data-icon="code"></span></button>
+    <div class="flex-1"></div>
+    <div class="flex-row-gap-8">
+      <!-- Aide « Comprendre les IA disponibles » : dans la barre du workspace
+           (toujours visible, même sidebar repliée), à l'écart des boutons de vue. -->
+      <button class="btn btn--icon" data-action="ui-openHelpModal" title="Comprendre les IA disponibles"><span class="ic" data-icon="circle-question"></span></button>
+      <!-- Ordonnanceur IA (chantier E) : registre de jobs + reprise par profil. -->
+      <button class="btn btn--icon" data-action="ui-openSchedulerModal" title="Ordonnanceur IA"><span class="ic" data-icon="robot"></span></button>
+      <button class="btn btn--icon" data-action="ui-openSettingsModal" title="Réglages"><span class="ic" data-icon="gear"></span></button>
+    </div>
+  </div>
+
+  <div class="workspace-body">
+    <!-- IDE -->
+    <div class="ide-panel collapsed" id="idePanel">
+      <div class="file-explorer collapsed" id="fileExplorer">
+        <div class="explorer-header">
+          <h3 class="explorer-title">Fichiers</h3>
+          <div class="flex-row-gap-8">
+            <button class="btn btn--icon btn--icon-sm" data-action="ui-selectLocalFolder" title="Ouvrir un dossier"><span class="ic" data-icon="folder-open"></span></button>
+            <div class="collapse-arrow" data-action="ui-toggleExplorer" title="Réduire"><span class="ic" data-icon="chevron-left"></span></div>
+          </div>
+        </div>
+        <!-- Champ de recherche (lot 18/09/2026) : filtre les fichiers par nom,
+             insensible à la casse. Ne fait rien si aucun dossier n'est ouvert. -->
+        <input type="text" class="file-search-input hidden" id="fileSearchInput" placeholder="Rechercher un fichier..." data-input-action="onFileSearch">
+        <div id="fileList"></div>
+      </div>
+      <div class="resizer resizer-explorer" id="resizerExplorer" title="Glisser pour redimensionner"></div>
+      <div class="editor-container">
+        <div class="editor-tabs"><span class="ic" data-icon="js"></span> <span id="activeFileName">Aucun fichier</span></div>
+        <div id="monacoContainer"></div>
+      </div>
+    </div>
+
+    <div class="resizer resizer-ide" id="resizerIde" title="Glisser pour redimensionner l'éditeur"></div>
+
+    <!-- Zone IA : onglets (un onglet par service/compte ouvert) -->
+    <div class="ai-area" id="aiArea">
+      <div class="tabs-bar" id="tabsBar"></div>
+      <div class="tabs-content" id="tabsContent">
+        <div class="tabs-empty" id="tabsEmpty"><span class="ic" data-icon="robot"></span><span>Aucun onglet ouvert — choisissez un service dans la liste des comptes</span></div>
+      </div>
+    </div>
+  </div>
+</main>
+
+<!-- Modal Compte -->
+<div class="modal-overlay" id="accountModal">
+  <div class="modal">
+    <div class="modal__title" id="modalTitle">Ajouter un compte</div>
+    <div class="modal__desc">Le profil permet d'isoler les cookies dans Electron.</div>
+    <input type="hidden" id="editId">
+    <div class="form-group"><label class="form-label">Nom du compte</label><input class="form-input" id="inputName" type="text"></div>
+    <div class="form-group"><label class="form-label">Email</label><input class="form-input" id="inputEmail" type="email"></div>
+    <div class="form-group"><label class="form-label">Nom du Profil</label><input class="form-input" id="inputProfile" type="text"></div>
+    <div class="modal__actions">
+      <button class="btn" data-action="ui-closeModal">Annuler</button>
+      <button class="btn btn--primary" data-action="ui-saveAccount">Enregistrer</button>
+    </div>
+  </div>
+</div>
+
+<!-- Modal Suppression -->
+<div class="modal-overlay" id="deleteModal">
+  <div class="modal">
+    <div class="modal__title">Supprimer le compte</div>
+    <div class="modal__desc" id="deleteDesc">Cette action est irréversible.</div>
+    <input type="hidden" id="deleteId">
+    <div class="modal__actions">
+      <button class="btn" data-action="ui-closeDeleteModal">Annuler</button>
+      <button class="btn btn--danger" data-action="ui-confirmDelete">Supprimer</button>
+    </div>
+  </div>
+</div>
+
+<!-- Modal Confirmation import JSON (lot import/export). L'import REMPLACE toute
+     la liste de comptes existante : on affiche le nombre de comptes lus dans le
+     fichier avant d'écraser quoi que ce soit (aucun accès direct à localStorage
+     depuis cette modale : elle ne fait que déclencher confirmImport()). -->
+<div class="modal-overlay" id="importConfirmModal">
+  <div class="modal">
+    <div class="modal__title">Importer des comptes</div>
+    <div class="modal__desc" id="importConfirmDesc"></div>
+    <div class="modal__actions">
+      <button class="btn" data-action="ui-closeImportConfirm">Annuler</button>
+      <button class="btn btn--danger" data-action="ui-confirmImport">Remplacer et importer</button>
+    </div>
+  </div>
+</div>
+
+<!-- Modal Déconnexion d'un profil (lot « Actions sur un onglet ouvert »,
+     17/09/2026) : purge de la partition Electron du compte (cookies + stockage
+     web), donc de TOUS les onglets ouverts de ce compte, pas seulement celui
+     d'où l'action a été lancée (un profil = un seul compte, invariant 4).
+     Destructif -> confirmation explicite, calquée sur #deleteModal. Le texte
+     est rempli par buildDisconnectWarning() (lib/tab-actions.js). -->
+<div class="modal-overlay" id="disconnectModal">
+  <div class="modal">
+    <div class="modal__title">Déconnecter le profil</div>
+    <div class="modal__desc" id="disconnectDesc"></div>
+    <div class="modal__actions">
+      <button class="btn" data-action="ui-closeDisconnectModal">Annuler</button>
+      <button class="btn btn--danger" data-action="ui-confirmDisconnect">Déconnecter</button>
+    </div>
+  </div>
+</div>
+
+<!-- Modal Aide : « Comprendre les IA disponibles ». La liste est générée par le
+     JS à partir de SERVICES + SERVICE_INFO (data-driven, comme le reste). -->
+<div class="modal-overlay" id="helpModal">
+  <div class="modal modal--help">
+    <div class="modal__title">Comprendre les IA disponibles</div>
+    <div class="modal__subtitle">À quoi sert chaque service, et quand l'utiliser.</div>
+    <div class="help-list" id="helpList"></div>
+    <div class="modal__actions">
+      <button class="btn" data-action="ui-closeHelpModal">Fermer</button>
+    </div>
+  </div>
+</div>
+
+<!-- Modal Ordonnanceur IA (chantier E) : registre de jobs géré côté main.js
+     (scheduler/), affiché ici en lecture + actions manuelles via IPC.
+     Proposition externe intégrée au backlog (voir FEATURES.md « Ordonnanceur »). -->
+<div class="modal-overlay" id="schedulerModal">
+  <div class="modal modal--scheduler">
+    <div class="sched-head">
+      <div>
+        <div class="modal__title modal__title--tight">Ordonnanceur IA</div>
+        <div class="sched-subtitle">Détection des ZIP livrés par les onglets IA, reprise par profil.</div>
+      </div>
+      <label class="sched-toggle" title="Activer / désactiver l'ordonnanceur">
+        <input type="checkbox" id="schedToggleInput">
+        <span class="sched-toggle__track"></span>
+        <span class="sched-toggle__thumb"></span>
+      </label>
+    </div>
+
+    <div class="sched-stats">
+      <div class="stat-card"><div class="stat-card__label">Jobs actifs</div><div class="stat-card__value text-accent" id="statSchedActive">0</div></div>
+      <div class="stat-card"><div class="stat-card__label">En attente</div><div class="stat-card__value text-warning" id="statSchedWaiting">0</div></div>
+      <div class="stat-card"><div class="stat-card__label">Livrés aujourd'hui</div><div class="stat-card__value text-rose" id="statSchedDelivered">0</div></div>
+    </div>
+
+    <div class="sched-config">
+      <div class="form-group"><label class="form-label">Jobs simultanés max.</label><input class="form-input" id="schedMaxJobs" type="number" min="1" step="1"></div>
+      <div class="form-group"><label class="form-label">Délai min. entre automatisations (min)</label><input class="form-input" id="schedMinDelay" type="number" min="0" step="5"></div>
+      <div class="form-group"><label class="form-label">Seuil profil « le plus ancien » (h)</label><input class="form-input" id="schedThreshold" type="number" min="0" step="1"></div>
+      <div class="form-group">
+        <label class="form-label">Dossiers</label>
+        <div class="flex-row-gap-6 mb-6">
+          <button class="btn btn--flex-sm" id="schedPickDownloads">Téléchargements…</button>
+          <button class="btn btn--flex-sm" id="schedPickDelivery">Livraison…</button>
+        </div>
+      </div>
+    </div>
+    <div class="sched-dirs">
+      <span>Téléchargements : <span id="schedDownloadsDir">(dossier de téléchargements du système)</span></span>
+      <span>Livraison : <span id="schedDeliveryDir">(non défini)</span></span>
+    </div>
+
+    <div class="sched-section-label">Projets & tâches</div>
+    <div class="sched-jobs sched-jobs--projects" id="schedProjectsList"></div>
+
+    <div class="sched-section-label">Jobs</div>
+    <div class="sched-jobs" id="schedJobsList"></div>
+
+    <div class="sched-section-label">Journal d'activité</div>
+    <div class="sched-log" id="schedLog"></div>
+
+    <div class="modal__actions">
+      <button class="btn" data-action="ui-closeSchedulerModal">Fermer</button>
+    </div>
+  </div>
+</div>
+
+<!-- Modal de confirmation réutilisable (lot 18/09/2026 — réglage confirmBeforeClose) -->
+<div class="modal-overlay" id="confirmModal">
+  <div class="modal modal--confirm">
+    <div class="modal__title confirm-title">Confirmation</div>
+    <div class="confirm-msg"></div>
+    <div class="modal__actions modal__actions--spaced">
+      <button class="btn" id="confirmModalNo">Annuler</button>
+      <button class="btn btn--danger" id="confirmModalYes">Confirmer</button>
+    </div>
+  </div>
+</div>
+
+<!-- Modal Réglages (lot 18/09/2026, FEATURES.md P2) : persistance via IPC
+     settings:load/settings:save (main.js), normalisation via lib/settings.js. -->
+<div class="modal-overlay" id="settingsModal">
+  <div class="modal modal--help">
+    <div class="modal__title">Réglages</div>
+    <div class="modal__subtitle">Préférences de l'application, sauvegardées localement.</div>
+
+    <div class="settings-body">
+      <!-- Taille de police de l'éditeur -->
+      <div>
+        <label class="settings-label">Taille de police de l'éditeur (px)</label>
+        <input type="number" id="settingsEditorFontSize" min="8" max="32" value="14" class="settings-input">
+        <span class="settings-hint">8 à 32</span>
+      </div>
+
+      <!-- Thème -->
+      <div>
+        <label class="settings-label">Thème</label>
+        <select id="settingsTheme" class="settings-select">
+          <option value="iao">IAO (défaut)</option>
+          <option value="light">Clair</option>
+          <option value="dark">Sombre</option>
+        </select>
+      </div>
+
+      <!-- Retour à la ligne éditeur -->
+      <div>
+        <label class="settings-label">Retour à la ligne (éditeur)</label>
+        <select id="settingsEditorWordWrap" class="settings-select">
+          <option value="off">Désactivé</option>
+          <option value="on">Activé</option>
+          <option value="wordWrapColumn">Colonne fixe</option>
+        </select>
+      </div>
+
+      <!-- Cases à cocher -->
+      <div class="settings-checkboxes">
+        <label class="settings-checkbox-label">
+          <input type="checkbox" id="settingsConfirmBeforeClose"> Confirmer avant de fermer un onglet
+        </label>
+        <label class="settings-checkbox-label">
+          <input type="checkbox" id="settingsShowAutomationWindows"> Afficher les fenêtres d'automatisation
+        </label>
+        <label class="settings-checkbox-label">
+          <input type="checkbox" id="settingsStartWithLastSession"> Restaurer les onglets ouverts au démarrage
+        </label>
+      </div>
+    </div>
+
+    <div class="modal__actions">
+      <button class="btn" data-action="ui-closeSettingsModal">Annuler</button>
+      <button class="btn btn--primary-accent" data-action="ui-saveSettings">Enregistrer</button>
+    </div>
+  </div>
+</div>
+
+<!-- Script Monaco (Isolé pour éviter le conflit require) -->
+<script src="assets/pre-monaco.js"></script>
+<script src="node_modules/monaco-editor/min/vs/loader.js"></script>
+<script src="assets/app.js"></script>
+</body>
+</html>

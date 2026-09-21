@@ -1,0 +1,58 @@
+'use strict';
+
+const test = require('node:test');
+const assert = require('node:assert/strict');
+const vm = require('node:vm');
+const fs = require('node:fs');
+const path = require('node:path');
+
+// assets/icons.js est chargé dans le renderer via <script src="assets/icons.js">
+// (jamais par require()) et écrit directement sur `window` sans le garde
+// typeof window/module utilisé par lib/*.js — volontairement inchangé ici,
+// ce module n'a pas besoin d'être require-able côté Node puisqu'il tourne
+// toujours dans un vrai navigateur. On le charge donc dans un bac à sable `vm`
+// minimal, comme le ferait Electron, pour repérer toute erreur de syntaxe ou
+// d'icône incomplète AVANT le lancement de l'app.
+//
+// Ce fichier de test existe suite à un correctif du 17/09/2026 : l'entrée
+// `circle-question` était tronquée (chemin SVG non refermé), ce qui cassait
+// la syntaxe de la totalité du fichier — `window.IAO_ICONS` et
+// `window.hydrateIcons` n'étaient alors jamais définis, sans qu'aucun test
+// existant ne puisse le détecter (voir docs/PROJECT_CONTEXT.md). D'où ce
+// filet, volontairement simple : valider que le fichier s'exécute et que
+// chaque icône a la forme attendue, pas son rendu visuel.
+function loadIcons() {
+  const filePath = path.join(__dirname, '..', 'assets', 'icons.js');
+  const code = fs.readFileSync(filePath, 'utf8');
+  const sandbox = { window: {} };
+  vm.createContext(sandbox);
+  new vm.Script(code, { filename: filePath }).runInContext(sandbox);
+  return sandbox.window;
+}
+
+test('assets/icons.js est syntaxiquement valide et expose IAO_ICONS + hydrateIcons', () => {
+  const win = loadIcons();
+  assert.equal(typeof win.IAO_ICONS, 'object');
+  assert.notEqual(win.IAO_ICONS, null);
+  assert.equal(typeof win.hydrateIcons, 'function');
+});
+
+test('chaque icône déclarée a un viewBox ("vb") et un tracé ("p") non vides', () => {
+  const { IAO_ICONS } = loadIcons();
+  const names = Object.keys(IAO_ICONS);
+  assert.ok(names.length > 0, 'au moins une icône déclarée');
+  for (const name of names) {
+    const icon = IAO_ICONS[name];
+    assert.equal(typeof icon.vb, 'string', `${name}.vb doit être une chaîne`);
+    assert.match(icon.vb, /^\d+ \d+ \d+ \d+$/, `${name}.vb doit être un viewBox "x y w h" (ex: "0 0 512 512")`);
+    assert.equal(typeof icon.p, 'string', `${name}.p doit être une chaîne`);
+    assert.ok(icon.p.length > 0, `${name}.p ne doit pas être vide`);
+  }
+});
+
+test('les icônes des actions d\'onglet (17/09/2026) sont présentes', () => {
+  const { IAO_ICONS } = loadIcons();
+  for (const name of ['arrow-rotate-right', 'house', 'right-from-bracket']) {
+    assert.ok(IAO_ICONS[name], `icône manquante : ${name}`);
+  }
+});

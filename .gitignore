@@ -1,0 +1,28 @@
+# Dépendances
+node_modules/
+
+# Sorties de build (générées par `npm run dist`) — ne jamais versionner
+dist/
+
+# Fichiers de harnais / scratch de développement (jamais à committer)
+_test_harness.html
+*.local.html
+
+# Configuration locale / secrets (aucun n'est requis par le projet à ce jour,
+# mais on les exclut préventivement)
+.env
+.env.*
+*.local.json
+
+# Fichiers système
+Thumbs.db
+.DS_Store
+
+# Logs
+*.log
+npm-debug.log*
+
+# Éditeurs / IDE
+.vscode/
+.idea/
+*.swp

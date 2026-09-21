@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8">
+  <title>Claude mock — harnais Electron IAO (fichier local uniquement)</title>
+  <!--
+    Fixture LOCALE imitant la structure du DOM de Claude.ai, utilisée
+    UNIQUEMENT par test-electron/popups-continue.js (harnais d'intégration
+    Electron réel). Aucun accès réseau : ce fichier reproduit les sélecteurs
+    attendus par lib/claude-adapter.js :
+      - popup overlay          : div[role="dialog"] + [class*="modal"/"popup"]
+      - bouton fermer popup    : button[aria-label="Close"]
+      - bouton « Continuer »   : button[aria-label="Continuer"]
+      - zone de saisie chat    : div[contenteditable="true"].ProseMirror
+      - bouton envoyer         : button[data-testid="send-button"]
+      - réponse assistant      : .font-claude-response
+    Les clics sont tracés via data-clicked pour les assertions du harnais.
+  -->
+</head>
+<body>
+  <!-- Popup non désirée (ex. bannière cookies) : fermée par buildPopupDismissScript() -->
+  <div role="dialog" id="popup-cookies" class="modal-overlay">
+    <div class="popup">
+      <p>Nous utilisons des cookies pour améliorer votre expérience.</p>
+      <button aria-label="Close"
+              onclick="this.dataset.clicked='true'; document.getElementById('popup-cookies').remove();">&times;</button>
+    </div>
+  </div>
+
+  <!-- Bouton « Continuer » : ciblé par buildContinueActionScript() -->
+  <button aria-label="Continuer" id="btn-continue"
+          onclick="this.dataset.clicked='true';">Continuer</button>
+
+  <!-- Zone de saisie du chat -->
+  <div class="ProseMirror" contenteditable="true" role="textbox" id="chat-input"></div>
+  <button data-testid="send-button" id="btn-send">Envoyer</button>
+
+  <!-- Réponse assistant précédente (recherche de complétude) -->
+  <div class="font-claude-response">Réponse précédente de l'assistant.</div>
+</body>
+</html>

@@ -1,0 +1,102 @@
+# test-electron/ — harnais de tests d'intégration Electron réel
+
+Lot du 18/09/2026 (« Teste le zip livré avec un build Electron local complet »).
+Ces tests exécutent la **vraie application** (main.js + index.html) dans un
+**vrai Chromium/Electron v43**, sous un serveur X virtuel (xvfb) — sans
+affichage, sans accès réseau.
+
+## Contrainte forte : fixtures locales uniquement
+
+`docs/PROJECT_CONTEXT.md` (limitations délibérées) interdit tout accès réseau
+réel aux services IA. Toutes les pages « IA » du harnais sont donc des fichiers
+locaux dans `fixtures/` :
+
+| Fixture | Rôle |
+|---------|------|
+| `fixtures/claude-mock.html` | Imitation du DOM de Claude.ai (popup + bouton close, bouton « Continuer », zone de chat ProseMirror, bouton envoyer, réponse assistant) reproduisant les sélecteurs de `lib/claude-adapter.js`. Les clics sont tracés via `data-clicked`. |
+| `fixtures/guest.html` | Page minimaliste chargée dans une `<webview>` (partition `persist:`) pour tester la politique popups du guest. |
+
+## Scripts
+
+| Script | Ce qu'il teste | Commande |
+|--------|----------------|----------|
+| `popups-continue.js` | Intégration popups + bouton « Continuer » + CSP (14 tests) | `npm run test:electron` |
+| `smoke-packaged.js` | Fumée du binaire packagé par `npm run dist:linux` (3 tests) | `xvfb-run -a node test-electron/smoke-packaged.js` (après `npm run dist:linux`) |
+
+Ces scripts ne sont PAS découverts par `node --test` (dossier `test-electron/`,
+pas `test/`) : ils doivent être lancés explicitement. Ils ne sont PAS embarqués
+dans les builds packagés (`--ignore="^/test-electron$"` côté electron-packager,
+`!test-electron/**` côté electron-builder).
+
+## Contenu de `popups-continue.js`
+
+**Phase A — adaptateur sur fixture locale** (BrowserWindow + Chromium réel) :
+
+- A1. `buildClaudeDetectionScript()` : bouton « Continuer », popups, zone de
+  chat, bouton envoyer, bloc réponse détectés ; pas de faux quota.
+- A2. `buildPopupDismissScript()` : la popup est réellement fermée dans le DOM,
+  re-détection à zéro.
+- A3. `buildContinueActionScript()` : clic réel sur « Continuer » (vérifié par
+  `data-clicked`).
+- A4. `planClaudeAutomationStep()` : orchestration complète — popup fermée
+  d'abord, puis action « Continuer » (délais nuls via `rng`/`minDelayMs: 0`).
+
+**Phase B — application réelle** (`require('../main.js')` tel quel, fenêtre et
+userData seedés : 2 jobs `COMPLETED`, 1 compte éligible) :
+
+- B1. La fenêtre charge `index.html` et l'IPC `scheduler:get-state` renvoie
+  les jobs seedés.
+- B2. La fenêtre hôte ne peut PAS ouvrir de popup (`setWindowOpenHandler`
+  deny-all) — aucune webContents créée.
+- B3. La fenêtre hôte ne peut PAS naviguer vers le web (`will-navigate`
+  bloqué, URL restée `file://`).
+- B4. Une `<webview>` (partition `persist:profil_electron_test`) est chargée
+  et enregistrée auprès du scheduler par `did-attach-webview`
+  (diagnostic IPC exécuté dans la webview).
+- B5. Popups du guest : `about:` et `https` hors liste refusées (aucune
+  webContents) ; le lien web hors liste part vers le navigateur système
+  (`shell.openExternal` stubbé dans le harnais) ; contrôle croisé de
+  `isAllowedPopup`.
+- B6. Bouton « Continuer le projet » : `job_001` COMPLETED → RESUME_REQUIRED
+  avec le profil du compte éligible (compte synchronisé via le vrai canal
+  IPC `scheduler:sync-accounts`).
+- B7. Bouton « Continuer le projet » sans profil éligible restant :
+  `job_002` → WAITING_FOR_PROFILE.
+- B8. Clic réel sur le bouton Éditeur via `[data-action="ui-toggleIdePanel"]`
+  (vérifie la conversion en délégation globale, lot CSP) → panneau ouvert.
+- B9. Monaco s'initialise sous CSP : `.monaco-editor` présent + `window.monaco`
+  défini (workers via `blob:`).
+- B10. Zéro violation CSP sur toute la phase B : listener `console-message`
+  attaché à chaque webContents dès sa création, motifs « Content Security
+  Policy » / « Refused to execute|load|create ».
+
+Garde-fou : timeout global de 240 s (B9 peut attendre le chargement AMD de
+Monaco).
+
+## Contenu de `smoke-packaged.js`
+
+1. Le binaire `dist/IAO-linux-x64/IAO` lancé sous xvfb
+   (HOME et XDG_CONFIG_HOME isolés) reste vivant (pas de crash au boot).
+2. `main.js` s'exécute : « Ordonnanceur démarré » journalisé (console et/ou
+   `activity.json` du userData isolé).
+3. Terminaison propre sur SIGTERM.
+
+Variable d'environnement `SMOKE_APP_BINARY` (lot 5, 18/09/2026) : chemin d'un
+binaire alternatif à tester — extraction AppImage (`./app.AppImage
+--appimage-extract` puis `squashfs-root/iao`), `.deb` décompressé
+(`dpkg-deb -x`), etc. Sans la variable, le build electron-packager
+`dist/IAO-linux-x64/IAO` est utilisé.
+
+## Pièges rencontrés (à lire avant de modifier le harnais)
+
+- **Ne pas fermer la dernière fenêtre avant `require('../main.js')`** : sans
+  handler `window-all-closed` enregistré, Electron quitte l'app quand toutes
+  les fenêtres sont fermées (le harnais garderait une fenêtre fixture ouverte).
+- **`app.setAppPath()` avant `require('../main.js')`** : le harnais étant le
+  point d'entrée, la racine de l'app serait `test-electron/` et
+  `win.loadFile('index.html')` échouerait (ERR_FILE_NOT_FOUND).
+- **`module.require('electron')` dans le renderer, pas `require`** : après le
+  chargement de la page, le loader AMD de Monaco REMPLACE le `require` de
+  Node (« Synchronous require cannot resolve module 'electron' »).
+- **`shell.openExternal` est stubbé** par le harnais pour qu'un lien web hors
+  liste n'ouvre pas le vrai navigateur système pendant le test.
