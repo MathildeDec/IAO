@@ -90,8 +90,51 @@
       { id: 'grok', name: 'Grok', url: 'https://grok.com/', cssClass: 'svc-grok' },
       { id: 'leonardo', name: 'Leonardo AI', url: 'https://app.leonardo.ai/', cssClass: 'svc-leonardo' },
       { id: 'suno', name: 'Suno', url: 'https://suno.com/create', cssClass: 'svc-suno' },
-      { id: 'meshy', name: 'Meshy AI', url: 'https://www.meshy.ai/workspace', cssClass: 'svc-meshy' }
+      { id: 'meshy', name: 'Meshy AI', url: 'https://www.meshy.ai/workspace', cssClass: 'svc-meshy' },
+      // Issue #42 : services additionnels (sélectionnables via le menu)
+      { id: 'mistral', name: 'Mistral', url: 'https://chat.mistral.ai/', cssClass: 'svc-mistral' },
+      { id: 'deepseek', name: 'DeepSeek', url: 'https://chat.deepseek.com/', cssClass: 'svc-deepseek' },
+      { id: 'copilot', name: 'GitHub Copilot', url: 'https://github.com/features/copilot', cssClass: 'svc-copilot' },
+      { id: 'elicit', name: 'Elicit', url: 'https://elicit.com/', cssClass: 'svc-elicit' },
+      { id: 'notebooklm', name: 'NotebookLM', url: 'https://notebooklm.google.com/', cssClass: 'svc-notebooklm' },
+      { id: 'wolfram', name: 'Wolfram Alpha', url: 'https://www.wolframalpha.com/', cssClass: 'svc-wolfram' },
+      { id: 'deepl', name: 'DeepL', url: 'https://www.deepl.com/translator', cssClass: 'svc-deepl' },
+      { id: 'ideogram', name: 'Ideogram', url: 'https://ideogram.ai/', cssClass: 'svc-ideogram' },
+      { id: 'kling', name: 'Kling', url: 'https://klingai.com/', cssClass: 'svc-kling' },
+      { id: 'runway', name: 'Runway', url: 'https://runwayml.com/', cssClass: 'svc-runway' },
+      { id: 'pika', name: 'Pika', url: 'https://pika.art/', cssClass: 'svc-pika' },
+      { id: 'qwen', name: 'Qwen', url: 'https://chat.qwen.ai/', cssClass: 'svc-qwen' }
     ];
+
+    // Issue #42 : liste des services "à portée de main" (9 par défaut).
+    // Stockée dans localStorage, modifiable via le menu de sélection.
+    const ACTIVE_SERVICES_KEY = 'ai_active_services';
+    const DEFAULT_ACTIVE_SERVICES = ['claude','chatgpt','gemini','zeta','perplexity','grok','leonardo','suno','meshy'];
+    const MAX_ACTIVE_SERVICES = 9;
+
+    function getActiveServices() {
+      try {
+        const raw = localStorage.getItem(ACTIVE_SERVICES_KEY);
+        if (!raw) return DEFAULT_ACTIVE_SERVICES.slice();
+        const parsed = JSON.parse(raw);
+        if (!Array.isArray(parsed)) return DEFAULT_ACTIVE_SERVICES.slice();
+        // Filtrer les IDs invalides + limiter à MAX_ACTIVE_SERVICES
+        const valid = parsed.filter(id => SERVICES.some(s => s.id === id));
+        if (valid.length === 0) return DEFAULT_ACTIVE_SERVICES.slice();
+        return valid.slice(0, MAX_ACTIVE_SERVICES);
+      } catch (e) { return DEFAULT_ACTIVE_SERVICES.slice(); }
+    }
+
+    function saveActiveServices(ids) {
+      try { localStorage.setItem(ACTIVE_SERVICES_KEY, JSON.stringify(ids.slice(0, MAX_ACTIVE_SERVICES))); }
+      catch (e) { /* non bloquant */ }
+    }
+
+    // Retourne les services actifs (objets complets), dans l'ordre de sélection.
+    function activeServices() {
+      const ids = getActiveServices();
+      return ids.map(id => SERVICES.find(s => s.id === id)).filter(Boolean);
+    }
 
     const COLORS = ['#8b5cf6','#f230aa','#c4b5fd','#a855f7','#5865f2','#ec4899','#38bdf8','#f97316'];
 
@@ -134,6 +177,55 @@
       meshy: {
         what: "Un générateur de modèles 3D : il transforme un texte ou une image en objet 3D texturé, avec rigging/animation automatique et export vers les formats standards (GLB, FBX, STL…).",
         when: "Plutôt pour créer des assets 3D (jeux, impression 3D, animation) sans savoir modéliser."
+      },
+      // Issue #42 : fiches des services additionnels
+      mistral: {
+        what: "Le Chat de Mistral AI, éditeur européen (français). Modèles open-weights performants, chat, code et analyse de documents.",
+        when: "Alternative européenne solide pour le chat et le code, avec une bonne maîtrise du français."
+      },
+      deepseek: {
+        what: "DeepSeek : assistant IA chinois spécialisé en raisonnement et programmation, particulièrement performant en Python.",
+        when: "Pour du code Python, du raisonnement étape par étape, ou une alternative gratuite à ChatGPT."
+      },
+      copilot: {
+        what: "GitHub Copilot : assistant IA intégré dans VS Code et GitHub. Autocomplétion, chat, génération de tests, explication de code.",
+        when: "Pour programmer plus vite dans VS Code ou sur GitHub, avec un modèle IA qui connaît votre codebase."
+      },
+      elicit: {
+        what: "Elicit : assistant de recherche scientifique. Trouve des articles, extrait des données, synthétise des études.",
+        when: "Pour la recherche académique, la revue de littérature et l'extraction de données d'articles scientifiques."
+      },
+      notebooklm: {
+        what: "NotebookLM de Google : interagissez avec vos propres documents (PDF, texte, audio). Résumés, questions, génération de notes.",
+        when: "Pour interroger vos documents personnels ou professionnels avec une IA qui cite ses sources."
+      },
+      wolfram: {
+        what: "Wolfram Alpha : moteur de calcul symbolique. Mathématiques, physique, chimie, données factuelles, conversions.",
+        when: "Pour des calculs exacts (mathématiques symboliques), des données chiffrées ou des conversions d'unités."
+      },
+      deepl: {
+        what: "DeepL : traduction automatique de haute qualité, plus naturelle que Google Traduction. Texte et documents entiers.",
+        when: "Pour traduire du texte ou des documents avec un rendu naturel et cohérent."
+      },
+      ideogram: {
+        what: "Ideogram : génération d'images orientée design. Logos, typographies, affiches, avec un excellent rendu du texte.",
+        when: "Pour créer des visuels avec du texte lisible (logos, affiches, bannières) ou du design graphique."
+      },
+      kling: {
+        what: "Kling : générateur de vidéos courtes à partir de texte ou d'images. Animations réalistes, crédits gratuits disponibles.",
+        when: "Pour créer des clips vidéo animés à partir d'une description ou d'une image fixe."
+      },
+      runway: {
+        what: "Runway : suite d'outils IA pour la vidéo. Génération, édition, effets spéciaux, inpainting vidéo.",
+        when: "Pour le montage et la création vidéo avancée avec des outils IA intégrés."
+      },
+      pika: {
+        what: "Pika : générateur de vidéos courtes et créatives. Animation d'images, effets, transformation de styles.",
+        when: "Pour animer des images ou créer des vidéos courtes originales avec des effets IA."
+      },
+      qwen: {
+        what: "Qwen : assistant IA d'Alibaba. Multimodal (texte, images, code), open-source, disponible en plusieurs tailles.",
+        when: "Alternative gratuite pour le chat, le code et l'analyse d'images, avec un bon support multilingue."
       }
     };
 
@@ -279,7 +371,10 @@
     // comptes enregistrés qui n'avaient pas encore Perplexity/Zeta).
     function migrateOldAccounts() {
       let needsUpdate = false;
-      const ALL_SERVICES = SERVICES.map(s => s.id);
+    // Issue #42 : ALL_SERVICES utilise les services actifs (9 sélectionnés)
+    // au lieu de tous les SERVICES. Les comptes existants gardent leurs services
+    // assignés ; les nouveaux comptes obtiennent les 9 services actifs.
+    const ALL_SERVICES = getActiveServices();
       accounts.forEach(acc => {
         if (!Array.isArray(acc.services)) { acc.services = [...ALL_SERVICES]; needsUpdate = true; }
         if (acc.quotas && !acc.cooldowns) { delete acc.quotas; needsUpdate = true; }
@@ -1040,6 +1135,64 @@
     // Fermeture par clic en dehors de la boîte (sur le fond assombri).
     document.getElementById('helpModal').addEventListener('click', (e) => {
       if (e.target === e.currentTarget) closeHelpModal();
+    });
+
+    // --- Issue #42 : Menu de sélection des services « à portée de main » ---
+    let pendingServices = null;
+
+    window.openServicesModal = function() {
+      const list = document.getElementById('servicesList');
+      const activeIds = getActiveServices();
+      pendingServices = new Set(activeIds);
+
+      list.innerHTML = SERVICES.map(svc => {
+        const checked = activeIds.includes(svc.id) ? 'checked' : '';
+        return `
+          <div class="help-entry">
+            <div class="help-entry__name">
+              <label class="service-select-item">
+                <input type="checkbox" data-svc-id="${escapeHtml(svc.id)}" ${checked}>
+                <span class="help-entry__dot svc-bg-${svc.id}"></span>
+                ${escapeHtml(svc.name)}
+              </label>
+            </div>
+          </div>
+        `;
+      }).join('');
+
+      // Délégation : mettre à jour pendingServices + compter
+      list.onchange = (e) => {
+        const cb = e.target;
+        if (cb && cb.dataset && cb.dataset.svcId) {
+          if (cb.checked) {
+            if (pendingServices.size >= MAX_ACTIVE_SERVICES) {
+              cb.checked = false;
+              showToast('Maximum ' + MAX_ACTIVE_SERVICES + ' services à portée de main', 'error');
+              return;
+            }
+            pendingServices.add(cb.dataset.svcId);
+          } else {
+            pendingServices.delete(cb.dataset.svcId);
+          }
+        }
+      };
+
+      document.getElementById('servicesModal').classList.add('open');
+    };
+    window.closeServicesModal = function() { document.getElementById('servicesModal').classList.remove('open'); pendingServices = null; };
+    window.saveServicesModal = function() {
+      if (!pendingServices) return closeServicesModal();
+      const ids = Array.from(pendingServices);
+      if (ids.length === 0) { showToast('Sélectionnez au moins 1 service', 'error'); return; }
+      saveActiveServices(ids);
+      closeServicesModal();
+      // Mettre à jour ALL_SERVICES et re-rendre les comptes
+      showToast('Services mis à jour (' + ids.length + '/' + MAX_ACTIVE_SERVICES + ')');
+      // Recharger pour appliquer les changements partout
+      renderAccounts();
+    };
+    document.getElementById('servicesModal').addEventListener('click', (e) => {
+      if (e.target === e.currentTarget) closeServicesModal();
     });
 
     // Suppression de compte
@@ -2113,6 +2266,9 @@ const UI_ACTIONS = {
   'ui-toggleIdePanel': 'toggleIdePanel',
   'ui-openModal': 'openModal',
   'ui-openHelpModal': 'openHelpModal',
+  'ui-openServicesModal': 'openServicesModal',
+  'ui-closeServicesModal': 'closeServicesModal',
+  'ui-saveServicesModal': 'saveServicesModal',
   'ui-openSchedulerModal': 'openSchedulerModal',
   'ui-openSettingsModal': 'openSettingsModal',
   'ui-exportAccountsToFile': 'exportAccountsToFile',
