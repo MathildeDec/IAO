@@ -1,0 +1,171 @@
+# Publication des builds via GitHub Releases.
+#
+# Déclenché par un tag v* (ex: v1.0.0) ou manuellement (workflow_dispatch).
+# Construit les binaires Windows + Linux, génère les sommes SHA-256,
+# et publie une release GitHub avec les artefacts.
+#
+# La signature des binaires reste un sujet séparé (issue #7) — ce workflow
+# ne signe pas, il publie uniquement les builds non signés + sommes de contrôle.
+#
+# Modèle : feature → dev (PR) → main (PR) → tag v* → release automatique.
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Version à publier (ex: 1.0.0)'
+        required: true
+        type: string
+
+permissions:
+  contents: write
+
+jobs:
+  build-linux:
+    name: Build Linux (.deb + AppImage)
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout du dépôt
+        uses: actions/checkout@v4
+
+      - name: Installation de Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Installation des dépendances
+        run: npm ci
+
+      - name: Build .deb
+        run: npm run dist:linux:deb
+
+      - name: Build AppImage
+        run: npm run dist:linux:appimage
+
+      - name: Build electron-packager (Linux)
+        run: npm run dist:linux
+
+      - name: Génération des sommes SHA-256
+        run: |
+          cd dist
+          sha256sum *.deb *.AppImage > SHA256SUMS-linux.txt
+          cat SHA256SUMS-linux.txt
+
+      - name: Upload des artefacts Linux
+        uses: actions/upload-artifact@v4
+        with:
+          name: linux-builds
+          path: |
+            dist/*.deb
+            dist/*.AppImage
+            dist/SHA256SUMS-linux.txt
+          retention-days: 30
+
+  build-windows:
+    name: Build Windows (.exe)
+    runs-on: windows-latest
+
+    steps:
+      - name: Checkout du dépôt
+        uses: actions/checkout@v4
+
+      - name: Installation de Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Installation des dépendances
+        run: npm ci
+
+      - name: Build .exe (electron-packager)
+        run: npm run dist:win
+
+      - name: Génération des sommes SHA-256
+        shell: pwsh
+        run: |
+          cd dist
+          Get-FileHash *.exe -Algorithm SHA256 | Format-List > SHA256SUMS-windows.txt
+          Get-Content SHA256SUMS-windows.txt
+
+      - name: Upload des artefacts Windows
+        uses: actions/upload-artifact@v4
+        with:
+          name: windows-builds
+          path: |
+            dist/IAO-win32-x64/
+            dist/SHA256SUMS-windows.txt
+          retention-days: 30
+
+  release:
+    name: Publication GitHub Release
+    needs: [build-linux, build-windows]
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout du dépôt
+        uses: actions/checkout@v4
+
+      - name: Récupération de la version
+        id: version
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            echo "version=${{ github.event.inputs.version }}" >> "$GITHUB_OUTPUT"
+          else
+            echo "version=${GITHUB_REF#refs/tags/v}" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Téléchargement des artefacts Linux
+        uses: actions/download-artifact@v4
+        with:
+          name: linux-builds
+          path: release-assets
+
+      - name: Téléchargement des artefacts Windows
+        uses: actions/download-artifact@v4
+        with:
+          name: windows-builds
+          path: release-assets
+
+      - name: Création du zip Windows
+        run: |
+          cd release-assets
+          zip -r "IAO-${{ steps.version.outputs.version }}-win32-x64.zip" IAO-win32-x64/
+          rm -rf IAO-win32-x64/
+
+      - name: Fusion des sommes SHA-256
+        run: |
+          cd release-assets
+          cat SHA256SUMS-linux.txt SHA256SUMS-windows.txt > SHA256SUMS.txt
+          rm SHA256SUMS-linux.txt SHA256SUMS-windows.txt
+          cat SHA256SUMS.txt
+
+      - name: Publication de la release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: v${{ steps.version.outputs.version }}
+          name: IAO v${{ steps.version.outputs.version }}
+          generate_release_notes: true
+          draft: false
+          prerelease: false
+          files: |
+            release-assets/*
+          body: |
+            ## IAO v${{ steps.version.outputs.version }}
+
+            Builds Windows et Linux avec sommes de contrôle SHA-256.
+
+            ⚠️ Les binaires ne sont pas signés (voir issue #7) — Windows SmartScreen affichera un avertissement.
+
+            ### Installation
+
+            - **Linux** : installer le `.deb` avec `dpkg -i` ou utiliser l'AppImage
+            - **Windows** : dézipper `IAO-*-win32-x64.zip` et lancer `IAO.exe`
+
+            Vérifier l'intégrité avec `SHA256SUMS.txt`.
