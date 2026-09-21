@@ -1,0 +1,43 @@
+name: CI
+
+"on":
+  push:
+    branches: [main, dev]
+  pull_request:
+    branches: [main, dev]
+  workflow_dispatch:
+
+jobs:
+  qualite:
+    name: Qualité (tests unitaires + audit npm)
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout du dépôt
+        uses: actions/checkout@v4
+
+      - name: Installation de Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Installation des dépendances (npm ci)
+        run: npm ci
+
+      - name: Tests unitaires (node --test)
+        run: npm test
+
+      - name: Audit npm (dépendances production)
+        run: npm audit --omit=dev --audit-level=high
+        continue-on-error: true
+
+      - name: Publication du rapport de test (artifact)
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-results
+          path: |
+            test/
+          retention-days: 14
+          if-no-files-found: ignore
