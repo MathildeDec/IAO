@@ -21,6 +21,7 @@ locaux dans `fixtures/` :
 | Script | Ce qu'il teste | Commande |
 |--------|----------------|----------|
 | `popups-continue.js` | Intégration popups + bouton « Continuer » + CSP (14 tests) | `npm run test:electron` |
+| `ui-flows.js` | Flux UI : rendu comptes, escapeHtml, thème, explorateur, onglets (11 tests) | `xvfb-run -a npx electron --no-sandbox test-electron/ui-flows.js` |
 | `smoke-packaged.js` | Fumée du binaire packagé par `npm run dist:linux` (3 tests) | `xvfb-run -a node test-electron/smoke-packaged.js` (après `npm run dist:linux`) |
 
 Ces scripts ne sont PAS découverts par `node --test` (dossier `test-electron/`,
