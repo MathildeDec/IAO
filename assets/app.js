@@ -155,6 +155,7 @@ const nodeRequire = window.__iaoNodeRequire || window.require;
     const STORE_KEY = 'ai_accounts';
     const BACKUP_KEY = 'ai_accounts_backup';
     const TABS_KEY = 'ai_open_tabs'; // lot 18/09/2026 : restauration des onglets au démarrage
+    const ORDER_KEY = 'ai_account_order'; // issue #6 : ordre personnalisé des comptes (drag-and-drop)
 
     // Lecture JSON sûre : ne throw JAMAIS. Renvoie un statut pour distinguer
     // « vide » (première utilisation) de « corrompu » (backup à proposer).
@@ -384,6 +385,53 @@ const nodeRequire = window.__iaoNodeRequire || window.require;
     }
 
     // Rendu
+    // --- Issue #6 : ordre personnalisé des comptes (drag-and-drop) ------------
+    // L'ordre est stocké comme un tableau d'IDs dans ai_account_order.
+    // Les comptes sans ordre explicite sont triés alphabétiquement (fallback).
+    function getAccountOrder() {
+      try {
+        const raw = localStorage.getItem(ORDER_KEY);
+        if (!raw) return null;
+        const parsed = JSON.parse(raw);
+        if (!Array.isArray(parsed)) return null;
+        return parsed.filter(id => typeof id === 'string');
+      } catch (e) { return null; }
+    }
+
+    function saveAccountOrder(orderList) {
+      try { localStorage.setItem(ORDER_KEY, JSON.stringify(orderList)); }
+      catch (e) { /* non bloquant */ }
+    }
+
+    // Trie les comptes : ordre personnalisé d'abord, puis alphabétique pour
+    // les comptes sans ordre explicite (nouveaux comptes, comptes importés).
+    function sortAccountsByOrder(list) {
+      const order = getAccountOrder();
+      if (!order || order.length === 0) {
+        return [...list].sort((a, b) => compareAccountNames(a.name, b.name));
+      }
+      const orderMap = new Map();
+      order.forEach((id, idx) => orderMap.set(id, idx));
+      const fallback = list.length + 1000;
+      return [...list].sort((a, b) => {
+        const ia = orderMap.has(a.id) ? orderMap.get(a.id) : fallback;
+        const ib = orderMap.has(b.id) ? orderMap.get(b.id) : fallback;
+        if (ia !== ib) return ia - ib;
+        return compareAccountNames(a.name, b.name);
+      });
+    }
+
+    // Nettoie l'ordre : supprime les IDs de comptes supprimés.
+    function pruneAccountOrder(currentAccounts) {
+      const order = getAccountOrder();
+      if (!order) return;
+      const validIds = new Set(currentAccounts.map(a => a.id));
+      const pruned = order.filter(id => validIds.has(id));
+      // Ajoute les nouveaux comptes à la fin
+      currentAccounts.forEach(a => { if (!pruned.includes(a.id)) pruned.push(a.id); });
+      saveAccountOrder(pruned);
+    }
+
     function renderAccounts() {
       const container = document.getElementById('accountsList');
       if (accounts.length === 0) {
@@ -400,11 +448,10 @@ const nodeRequire = window.__iaoNodeRequire || window.require;
         return;
       }
 
-      // Tri alphanumérique pour l'affichage uniquement (lot 16/09/2026,
-      // compareAccountNames de lib/activity-status.js) : accounts[] lui-même
-      // garde son ordre de stockage, seule cette copie est triée -> aucun
-      // impact sur saveAccounts()/les raccourcis/la palette Ctrl+K.
-      const sortedAccounts = [...accounts].sort((a, b) => compareAccountNames(a.name, b.name));
+      // Issue #6 : ordre personnalisé (drag-and-drop) d'abord, fallback
+      // alphabétique pour les comptes sans ordre explicite. accounts[] lui-même
+      // garde son ordre de stockage -> aucun impact sur saveAccounts()/raccourcis.
+      const sortedAccounts = sortAccountsByOrder(accounts);
       container.innerHTML = sortedAccounts.map((acc, idx) => {
         // Toute donnée issue du compte (nom, email, profil, couleur) est saisie
         // par l'utilisateur -> échappée avant injection (chantier A).
@@ -451,7 +498,7 @@ const nodeRequire = window.__iaoNodeRequire || window.require;
         // les boutons éditer/supprimer imbriqués portent leur propre data-action,
         // que closest() résout en priorité -> aucun conflit de clic.
         return `
-          <div class="account-card ${isActive ? 'active' : ''} ${isCollapsed ? 'collapsed' : ''}">
+          <div class="account-card ${isActive ? 'active' : ''} ${isCollapsed ? 'collapsed' : ''}" draggable="true" data-acc="${id}">
             <div class="account-header" data-action="toggle-collapse" data-acc="${id}">
               <div class="account-avatar" data-avatar-color="${color}">${initials}<span class="status-dot status-dot--${activityStatus}" title="${statusTitle}"></span></div>
               <div class="account-info">
@@ -1081,6 +1128,7 @@ const nodeRequire = window.__iaoNodeRequire || window.require;
       accounts = accounts.filter(a => a.id !== id);
       if (activeAccountId === id) activeAccountId = null;
       saveCollapsed();        // purge l'état de repli du compte supprimé
+      pruneAccountOrder(accounts); // issue #6 : nettoie l'ordre des comptes supprimés
       saveAccounts(accounts); // écrit + backup de la génération précédente (chantier C)
       renderAccounts();
       closeDeleteModal();
@@ -1268,6 +1316,76 @@ const nodeRequire = window.__iaoNodeRequire || window.require;
       }
     });
 
+    // --- Issue #6 : drag-and-drop pour réorganiser les comptes ------------
+    // Délégation d'événements sur le conteneur (même pattern que le clic).
+    // HTML5 Drag and Drop API natif — aucune dépendance externe.
+    let draggedAccId = null;
+    let draggedOverId = null;
+
+    const accountsListEl = document.getElementById('accountsList');
+
+    accountsListEl.addEventListener('dragstart', (e) => {
+      const card = e.target.closest('.account-card');
+      if (!card) return;
+      draggedAccId = card.getAttribute('data-acc');
+      card.classList.add('dragging');
+      e.dataTransfer.effectAllowed = 'move';
+      // dataTransfer.setData requis par Firefox pour initier le drag
+      try { e.dataTransfer.setData('text/plain', draggedAccId); } catch (_) { /* ignore */ }
+    });
+
+    accountsListEl.addEventListener('dragend', (e) => {
+      const card = e.target.closest('.account-card');
+      if (card) card.classList.remove('dragging');
+      // Nettoie les indicateurs visuels
+      accountsListEl.querySelectorAll('.account-card.drag-over').forEach(c => c.classList.remove('drag-over'));
+      draggedAccId = null;
+      draggedOverId = null;
+    });
+
+    accountsListEl.addEventListener('dragover', (e) => {
+      if (!draggedAccId) return;
+      e.preventDefault(); // autorise le drop
+      e.dataTransfer.dropEffect = 'move';
+      const card = e.target.closest('.account-card');
+      if (!card || card.getAttribute('data-acc') === draggedAccId) return;
+      const overId = card.getAttribute('data-acc');
+      if (draggedOverId !== overId) {
+        // Nettoie l'ancien indicateur
+        if (draggedOverId) {
+          const old = accountsListEl.querySelector('.account-card[data-acc="' + CSS.escape(draggedOverId) + '"]');
+          if (old) old.classList.remove('drag-over');
+        }
+        card.classList.add('drag-over');
+        draggedOverId = overId;
+      }
+    });
+
+    accountsListEl.addEventListener('dragleave', (e) => {
+      // Nettoie seulement si on quitte vraiment le conteneur
+      if (!accountsListEl.contains(e.relatedTarget)) {
+        accountsListEl.querySelectorAll('.account-card.drag-over').forEach(c => c.classList.remove('drag-over'));
+        draggedOverId = null;
+      }
+    });
+
+    accountsListEl.addEventListener('drop', (e) => {
+      if (!draggedAccId || !draggedOverId || draggedAccId === draggedOverId) return;
+      e.preventDefault();
+
+      // Reconstruit l'ordre : prend l'ordre actuel, déplace draggedAccId
+      // à la position de draggedOverId.
+      const currentOrder = sortAccountsByOrder(accounts).map(a => a.id);
+      const fromIdx = currentOrder.indexOf(draggedAccId);
+      const toIdx = currentOrder.indexOf(draggedOverId);
+      if (fromIdx === -1 || toIdx === -1 || fromIdx === toIdx) return;
+
+      currentOrder.splice(fromIdx, 1);
+      currentOrder.splice(toIdx, 0, draggedAccId);
+      saveAccountOrder(currentOrder);
+      renderAccounts();
+    });
+
     document.getElementById('paletteResults').addEventListener('click', (e) => {
       const item = e.target.closest('[data-acc]');
       if (!item) return;
@@ -1405,6 +1523,9 @@ const nodeRequire = window.__iaoNodeRequire || window.require;
       }
       lastCdMinute = minute;
     }, 1000);
+
+    // Issue #6 : nettoie l'ordre personnalisé des comptes supprimés/importés
+    pruneAccountOrder(accounts);
 
     renderAccounts();
 
