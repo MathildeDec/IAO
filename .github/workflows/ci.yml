@@ -9,7 +9,7 @@ name: CI
 
 jobs:
   qualite:
-    name: Qualité (tests unitaires + audit npm)
+    name: Qualité (tests + couverture + audit npm)
     runs-on: ubuntu-latest
 
     steps:
@@ -25,19 +25,29 @@ jobs:
       - name: Installation des dépendances (npm ci)
         run: npm ci
 
-      - name: Tests unitaires (node --test)
-        run: npm test
+      - name: Tests unitaires avec couverture (node --test --experimental-test-coverage)
+        run: npm run test:coverage 2>&1 | tee coverage-output.txt
+
+      - name: Extraction du résumé de couverture
+        run: |
+          echo "## Couverture de code" >> "$GITHUB_STEP_SUMMARY"
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+          echo '```' >> "$GITHUB_STEP_SUMMARY"
+          grep -A 100 "^# start of coverage report" coverage-output.txt | grep -B 100 "^# end of coverage report" >> "$GITHUB_STEP_SUMMARY" || true
+          echo '```' >> "$GITHUB_STEP_SUMMARY"
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+          # Ligne de résumé
+          grep "^# all files" coverage-output.txt >> "$GITHUB_STEP_SUMMARY" || true
 
       - name: Audit npm (dépendances production)
         run: npm audit --omit=dev --audit-level=high
         continue-on-error: true
 
-      - name: Publication du rapport de test (artifact)
+      - name: Publication du rapport de couverture (artifact)
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: test-results
-          path: |
-            test/
+          name: coverage-report
+          path: coverage-output.txt
           retention-days: 14
-          if-no-files-found: ignore
+          if-no-files-found: warn
