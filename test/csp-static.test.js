@@ -84,19 +84,17 @@ test('ordre de chargement : pre-monaco.js AVANT loader.js AVANT app.js', () => {
   assert.ok(iLoader < iApp, 'loader.js doit précéder app.js');
 });
 
-test('assets/pre-monaco.js sauvegarde le require d\'Electron sur window.__iaoNodeRequire', () => {
+test('assets/pre-monaco.js ne sauvegarde plus window.__iaoNodeRequire (issue #4)', () => {
   const pre = fs.readFileSync(path.join(ROOT, 'assets', 'pre-monaco.js'), 'utf8');
-  assert.ok(pre.includes('window.__iaoNodeRequire = window.require'),
-    'la sauvegarde explicite du require est absente de pre-monaco.js');
+  assert.ok(!pre.includes('window.__iaoNodeRequire = window.require'),
+    'pre-monaco.js ne doit plus sauvegarder window.require (contextIsolation: true)');
 });
 
-test('assets/app.js relit window.__iaoNodeRequire avant tout usage de nodeRequire', () => {
-  const decl = appJs.indexOf('window.__iaoNodeRequire || window.require');
-  assert.ok(decl !== -1, 'initialisation const nodeRequire absente de app.js');
-  const firstUse = appJs.indexOf('nodeRequire(');
-  if (firstUse !== -1) {
-    assert.ok(decl < firstUse, 'nodeRequire est utilisé avant son initialisation dans app.js');
-  }
+test('assets/app.js ne contient plus nodeRequire (issue #4 : contextIsolation)', () => {
+  assert.ok(!appJs.includes('nodeRequire('),
+    'app.js ne doit plus contenir d\'appel nodeRequire() (contextIsolation: true)');
+  assert.ok(!appJs.includes('__iaoNodeRequire'),
+    'app.js ne doit plus faire référence à __iaoNodeRequire');
 });
 
 // --- Cohérence data-action ↔ UI_ACTIONS -----------------------------------
