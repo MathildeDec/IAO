@@ -34,8 +34,12 @@ jobs:
       - name: Installation de xvfb
         run: sudo apt-get update && sudo apt-get install -y xvfb
 
-      - name: Tests d'intégration Electron
+      - name: Tests d'intégration Electron (popups + Continuer)
         run: npm run test:electron
+        continue-on-error: true
+
+      - name: Tests UI Electron (comptes, onglets, réglages, explorateur)
+        run: xvfb-run -a npx electron --no-sandbox test-electron/ui-flows.js
         continue-on-error: true
 
       - name: Fumée du binaire packagé (Linux)

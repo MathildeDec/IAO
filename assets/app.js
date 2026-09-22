@@ -2,12 +2,9 @@
 // Extrait tel quel : voir index.html pour le HTML, lib/*.js pour les modules purs.
 // Comportement identique au script inline d'origine (même portée globale).
 
-// require d'Electron sauvegardé par assets/pre-monaco.js AVANT le chargement du
-// loader AMD de Monaco (qui remplace window.require). L'ancien script inline
-// déclarait « const nodeRequire = window.require » avant loader.js ; le
-// partage explicite via window.__iaoNodeRequire rend le découpage en
-// fichiers externes sûr quel que soit l'ordre de chargement.
-const nodeRequire = window.__iaoNodeRequire || window.require;
+// Issue #4 : contextIsolation: true — le renderer n'a plus accès à Node.
+// Les APIs nécessaires sont exposées par preload.js via window.iaoAPI.
+// L'ancien mécanisme de sauvegarde du require Electron est supprimé.
 
   // escapeHtml() vient désormais de lib/escape-html.js (chantier F, chargé en
   // <script src> plus haut) — comportement identique, désormais testé par
@@ -47,34 +44,28 @@ const nodeRequire = window.__iaoNodeRequire || window.require;
       return;
     }
     try {
-      // Monaco (en mode Node) résout son chemin relatif au mauvais endroit dans
-      // l'app packagée. On calcule donc le chemin ABSOLU de Monaco à partir de
-      // l'emplacement réel d'index.html (valable en dev ET en .exe packagé).
+      // Issue #4 : le chemin absolu de Monaco est calculé par preload.js
+      // (window.iaoAPI.resolveMonacoBase) car le renderer n'a plus accès à
+      // Node's url/path modules.
       let vsBase = 'node_modules/monaco-editor/min/vs';
       try {
-        const _url = nodeRequire('url');
-        const _path = nodeRequire('path');
-        const appDir = _path.dirname(_url.fileURLToPath(window.location.href));
-        vsBase = _path.join(appDir, 'node_modules', 'monaco-editor', 'min', 'vs').replace(/\\/g, '/');
+        const resolved = window.iaoAPI.resolveMonacoBase();
+        if (resolved) vsBase = resolved;
       } catch (e) { console.warn('[editor] chemin absolu Monaco indisponible, repli relatif'); }
       window.require.config({ paths: { vs: vsBase } });
       window.require(
         ['vs/editor/editor.main'],
         function () {
-          // Monaco chargé : on restaure le require d'Electron, puis on crée l'éditeur.
-          window.require = nodeRequire;
           console.log('[editor] Monaco chargé OK');
           if (window.__initMonacoEditor) window.__initMonacoEditor();
         },
         function (err) {
           // Échec du chargement du module Monaco.
-          window.require = nodeRequire;
           console.error('[editor] échec require(editor.main):', err && (err.message || err));
           onMonacoUnavailable();
         }
       );
     } catch (e) {
-      window.require = nodeRequire;
       console.error('[editor] exception loadMonaco:', e && (e.message || e));
       onMonacoUnavailable();
     }
@@ -86,9 +77,9 @@ const nodeRequire = window.__iaoNodeRequire || window.require;
   }
 
   function initApp() {
-    // On utilise nodeRequire (le require d'Electron sauvegardé plus haut) car
-    // window.require peut encore pointer vers le loader AMD de Monaco à ce stade.
-    const { ipcRenderer } = nodeRequire('electron');
+    // Issue #4 : ipcRenderer n'est plus accessible directement (contextIsolation).
+    // window.iaoAPI.ipcInvoke est exposé par preload.js.
+    const ipcRenderer = { invoke: window.iaoAPI.ipcInvoke };
 
     const SERVICES = [
       { id: 'claude', name: 'Claude', url: 'https://claude.ai/new', cssClass: 'svc-claude' },
@@ -99,8 +90,51 @@ const nodeRequire = window.__iaoNodeRequire || window.require;
       { id: 'grok', name: 'Grok', url: 'https://grok.com/', cssClass: 'svc-grok' },
       { id: 'leonardo', name: 'Leonardo AI', url: 'https://app.leonardo.ai/', cssClass: 'svc-leonardo' },
       { id: 'suno', name: 'Suno', url: 'https://suno.com/create', cssClass: 'svc-suno' },
-      { id: 'meshy', name: 'Meshy AI', url: 'https://www.meshy.ai/workspace', cssClass: 'svc-meshy' }
+      { id: 'meshy', name: 'Meshy AI', url: 'https://www.meshy.ai/workspace', cssClass: 'svc-meshy' },
+      // Issue #42 : services additionnels (sélectionnables via le menu)
+      { id: 'mistral', name: 'Mistral', url: 'https://chat.mistral.ai/', cssClass: 'svc-mistral' },
+      { id: 'deepseek', name: 'DeepSeek', url: 'https://chat.deepseek.com/', cssClass: 'svc-deepseek' },
+      { id: 'copilot', name: 'GitHub Copilot', url: 'https://github.com/features/copilot', cssClass: 'svc-copilot' },
+      { id: 'elicit', name: 'Elicit', url: 'https://elicit.com/', cssClass: 'svc-elicit' },
+      { id: 'notebooklm', name: 'NotebookLM', url: 'https://notebooklm.google.com/', cssClass: 'svc-notebooklm' },
+      { id: 'wolfram', name: 'Wolfram Alpha', url: 'https://www.wolframalpha.com/', cssClass: 'svc-wolfram' },
+      { id: 'deepl', name: 'DeepL', url: 'https://www.deepl.com/translator', cssClass: 'svc-deepl' },
+      { id: 'ideogram', name: 'Ideogram', url: 'https://ideogram.ai/', cssClass: 'svc-ideogram' },
+      { id: 'kling', name: 'Kling', url: 'https://klingai.com/', cssClass: 'svc-kling' },
+      { id: 'runway', name: 'Runway', url: 'https://runwayml.com/', cssClass: 'svc-runway' },
+      { id: 'pika', name: 'Pika', url: 'https://pika.art/', cssClass: 'svc-pika' },
+      { id: 'qwen', name: 'Qwen', url: 'https://chat.qwen.ai/', cssClass: 'svc-qwen' }
     ];
+
+    // Issue #42 : liste des services "à portée de main" (9 par défaut).
+    // Stockée dans localStorage, modifiable via le menu de sélection.
+    const ACTIVE_SERVICES_KEY = 'ai_active_services';
+    const DEFAULT_ACTIVE_SERVICES = ['claude','chatgpt','gemini','zeta','perplexity','grok','leonardo','suno','meshy'];
+    const MAX_ACTIVE_SERVICES = 9;
+
+    function getActiveServices() {
+      try {
+        const raw = localStorage.getItem(ACTIVE_SERVICES_KEY);
+        if (!raw) return DEFAULT_ACTIVE_SERVICES.slice();
+        const parsed = JSON.parse(raw);
+        if (!Array.isArray(parsed)) return DEFAULT_ACTIVE_SERVICES.slice();
+        // Filtrer les IDs invalides + limiter à MAX_ACTIVE_SERVICES
+        const valid = parsed.filter(id => SERVICES.some(s => s.id === id));
+        if (valid.length === 0) return DEFAULT_ACTIVE_SERVICES.slice();
+        return valid.slice(0, MAX_ACTIVE_SERVICES);
+      } catch (e) { return DEFAULT_ACTIVE_SERVICES.slice(); }
+    }
+
+    function saveActiveServices(ids) {
+      try { localStorage.setItem(ACTIVE_SERVICES_KEY, JSON.stringify(ids.slice(0, MAX_ACTIVE_SERVICES))); }
+      catch (e) { /* non bloquant */ }
+    }
+
+    // Retourne les services actifs (objets complets), dans l'ordre de sélection.
+    function activeServices() {
+      const ids = getActiveServices();
+      return ids.map(id => SERVICES.find(s => s.id === id)).filter(Boolean);
+    }
 
     const COLORS = ['#8b5cf6','#f230aa','#c4b5fd','#a855f7','#5865f2','#ec4899','#38bdf8','#f97316'];
 
@@ -143,6 +177,55 @@ const nodeRequire = window.__iaoNodeRequire || window.require;
       meshy: {
         what: "Un générateur de modèles 3D : il transforme un texte ou une image en objet 3D texturé, avec rigging/animation automatique et export vers les formats standards (GLB, FBX, STL…).",
         when: "Plutôt pour créer des assets 3D (jeux, impression 3D, animation) sans savoir modéliser."
+      },
+      // Issue #42 : fiches des services additionnels
+      mistral: {
+        what: "Le Chat de Mistral AI, éditeur européen (français). Modèles open-weights performants, chat, code et analyse de documents.",
+        when: "Alternative européenne solide pour le chat et le code, avec une bonne maîtrise du français."
+      },
+      deepseek: {
+        what: "DeepSeek : assistant IA chinois spécialisé en raisonnement et programmation, particulièrement performant en Python.",
+        when: "Pour du code Python, du raisonnement étape par étape, ou une alternative gratuite à ChatGPT."
+      },
+      copilot: {
+        what: "GitHub Copilot : assistant IA intégré dans VS Code et GitHub. Autocomplétion, chat, génération de tests, explication de code.",
+        when: "Pour programmer plus vite dans VS Code ou sur GitHub, avec un modèle IA qui connaît votre codebase."
+      },
+      elicit: {
+        what: "Elicit : assistant de recherche scientifique. Trouve des articles, extrait des données, synthétise des études.",
+        when: "Pour la recherche académique, la revue de littérature et l'extraction de données d'articles scientifiques."
+      },
+      notebooklm: {
+        what: "NotebookLM de Google : interagissez avec vos propres documents (PDF, texte, audio). Résumés, questions, génération de notes.",
+        when: "Pour interroger vos documents personnels ou professionnels avec une IA qui cite ses sources."
+      },
+      wolfram: {
+        what: "Wolfram Alpha : moteur de calcul symbolique. Mathématiques, physique, chimie, données factuelles, conversions.",
+        when: "Pour des calculs exacts (mathématiques symboliques), des données chiffrées ou des conversions d'unités."
+      },
+      deepl: {
+        what: "DeepL : traduction automatique de haute qualité, plus naturelle que Google Traduction. Texte et documents entiers.",
+        when: "Pour traduire du texte ou des documents avec un rendu naturel et cohérent."
+      },
+      ideogram: {
+        what: "Ideogram : génération d'images orientée design. Logos, typographies, affiches, avec un excellent rendu du texte.",
+        when: "Pour créer des visuels avec du texte lisible (logos, affiches, bannières) ou du design graphique."
+      },
+      kling: {
+        what: "Kling : générateur de vidéos courtes à partir de texte ou d'images. Animations réalistes, crédits gratuits disponibles.",
+        when: "Pour créer des clips vidéo animés à partir d'une description ou d'une image fixe."
+      },
+      runway: {
+        what: "Runway : suite d'outils IA pour la vidéo. Génération, édition, effets spéciaux, inpainting vidéo.",
+        when: "Pour le montage et la création vidéo avancée avec des outils IA intégrés."
+      },
+      pika: {
+        what: "Pika : générateur de vidéos courtes et créatives. Animation d'images, effets, transformation de styles.",
+        when: "Pour animer des images ou créer des vidéos courtes originales avec des effets IA."
+      },
+      qwen: {
+        what: "Qwen : assistant IA d'Alibaba. Multimodal (texte, images, code), open-source, disponible en plusieurs tailles.",
+        when: "Alternative gratuite pour le chat, le code et l'analyse d'images, avec un bon support multilingue."
       }
     };
 
@@ -155,6 +238,7 @@ const nodeRequire = window.__iaoNodeRequire || window.require;
     const STORE_KEY = 'ai_accounts';
     const BACKUP_KEY = 'ai_accounts_backup';
     const TABS_KEY = 'ai_open_tabs'; // lot 18/09/2026 : restauration des onglets au démarrage
+    const ORDER_KEY = 'ai_account_order'; // issue #6 : ordre personnalisé des comptes (drag-and-drop)
 
     // Lecture JSON sûre : ne throw JAMAIS. Renvoie un statut pour distinguer
     // « vide » (première utilisation) de « corrompu » (backup à proposer).
@@ -287,7 +371,10 @@ const nodeRequire = window.__iaoNodeRequire || window.require;
     // comptes enregistrés qui n'avaient pas encore Perplexity/Zeta).
     function migrateOldAccounts() {
       let needsUpdate = false;
-      const ALL_SERVICES = SERVICES.map(s => s.id);
+    // Issue #42 : ALL_SERVICES utilise les services actifs (9 sélectionnés)
+    // au lieu de tous les SERVICES. Les comptes existants gardent leurs services
+    // assignés ; les nouveaux comptes obtiennent les 9 services actifs.
+    const ALL_SERVICES = getActiveServices();
       accounts.forEach(acc => {
         if (!Array.isArray(acc.services)) { acc.services = [...ALL_SERVICES]; needsUpdate = true; }
         if (acc.quotas && !acc.cooldowns) { delete acc.quotas; needsUpdate = true; }
@@ -384,6 +471,53 @@ const nodeRequire = window.__iaoNodeRequire || window.require;
     }
 
     // Rendu
+    // --- Issue #6 : ordre personnalisé des comptes (drag-and-drop) ------------
+    // L'ordre est stocké comme un tableau d'IDs dans ai_account_order.
+    // Les comptes sans ordre explicite sont triés alphabétiquement (fallback).
+    function getAccountOrder() {
+      try {
+        const raw = localStorage.getItem(ORDER_KEY);
+        if (!raw) return null;
+        const parsed = JSON.parse(raw);
+        if (!Array.isArray(parsed)) return null;
+        return parsed.filter(id => typeof id === 'string');
+      } catch (e) { return null; }
+    }
+
+    function saveAccountOrder(orderList) {
+      try { localStorage.setItem(ORDER_KEY, JSON.stringify(orderList)); }
+      catch (e) { /* non bloquant */ }
+    }
+
+    // Trie les comptes : ordre personnalisé d'abord, puis alphabétique pour
+    // les comptes sans ordre explicite (nouveaux comptes, comptes importés).
+    function sortAccountsByOrder(list) {
+      const order = getAccountOrder();
+      if (!order || order.length === 0) {
+        return [...list].sort((a, b) => compareAccountNames(a.name, b.name));
+      }
+      const orderMap = new Map();
+      order.forEach((id, idx) => orderMap.set(id, idx));
+      const fallback = list.length + 1000;
+      return [...list].sort((a, b) => {
+        const ia = orderMap.has(a.id) ? orderMap.get(a.id) : fallback;
+        const ib = orderMap.has(b.id) ? orderMap.get(b.id) : fallback;
+        if (ia !== ib) return ia - ib;
+        return compareAccountNames(a.name, b.name);
+      });
+    }
+
+    // Nettoie l'ordre : supprime les IDs de comptes supprimés.
+    function pruneAccountOrder(currentAccounts) {
+      const order = getAccountOrder();
+      if (!order) return;
+      const validIds = new Set(currentAccounts.map(a => a.id));
+      const pruned = order.filter(id => validIds.has(id));
+      // Ajoute les nouveaux comptes à la fin
+      currentAccounts.forEach(a => { if (!pruned.includes(a.id)) pruned.push(a.id); });
+      saveAccountOrder(pruned);
+    }
+
     function renderAccounts() {
       const container = document.getElementById('accountsList');
       if (accounts.length === 0) {
@@ -400,11 +534,10 @@ const nodeRequire = window.__iaoNodeRequire || window.require;
         return;
       }
 
-      // Tri alphanumérique pour l'affichage uniquement (lot 16/09/2026,
-      // compareAccountNames de lib/activity-status.js) : accounts[] lui-même
-      // garde son ordre de stockage, seule cette copie est triée -> aucun
-      // impact sur saveAccounts()/les raccourcis/la palette Ctrl+K.
-      const sortedAccounts = [...accounts].sort((a, b) => compareAccountNames(a.name, b.name));
+      // Issue #6 : ordre personnalisé (drag-and-drop) d'abord, fallback
+      // alphabétique pour les comptes sans ordre explicite. accounts[] lui-même
+      // garde son ordre de stockage -> aucun impact sur saveAccounts()/raccourcis.
+      const sortedAccounts = sortAccountsByOrder(accounts);
       container.innerHTML = sortedAccounts.map((acc, idx) => {
         // Toute donnée issue du compte (nom, email, profil, couleur) est saisie
         // par l'utilisateur -> échappée avant injection (chantier A).
@@ -451,7 +584,7 @@ const nodeRequire = window.__iaoNodeRequire || window.require;
         // les boutons éditer/supprimer imbriqués portent leur propre data-action,
         // que closest() résout en priorité -> aucun conflit de clic.
         return `
-          <div class="account-card ${isActive ? 'active' : ''} ${isCollapsed ? 'collapsed' : ''}">
+          <div class="account-card ${isActive ? 'active' : ''} ${isCollapsed ? 'collapsed' : ''}" draggable="true" data-acc="${id}">
             <div class="account-header" data-action="toggle-collapse" data-acc="${id}">
               <div class="account-avatar" data-avatar-color="${color}">${initials}<span class="status-dot status-dot--${activityStatus}" title="${statusTitle}"></span></div>
               <div class="account-info">
@@ -1004,6 +1137,64 @@ const nodeRequire = window.__iaoNodeRequire || window.require;
       if (e.target === e.currentTarget) closeHelpModal();
     });
 
+    // --- Issue #42 : Menu de sélection des services « à portée de main » ---
+    let pendingServices = null;
+
+    window.openServicesModal = function() {
+      const list = document.getElementById('servicesList');
+      const activeIds = getActiveServices();
+      pendingServices = new Set(activeIds);
+
+      list.innerHTML = SERVICES.map(svc => {
+        const checked = activeIds.includes(svc.id) ? 'checked' : '';
+        return `
+          <div class="help-entry">
+            <div class="help-entry__name">
+              <label class="service-select-item">
+                <input type="checkbox" data-svc-id="${escapeHtml(svc.id)}" ${checked}>
+                <span class="help-entry__dot svc-bg-${svc.id}"></span>
+                ${escapeHtml(svc.name)}
+              </label>
+            </div>
+          </div>
+        `;
+      }).join('');
+
+      // Délégation : mettre à jour pendingServices + compter
+      list.onchange = (e) => {
+        const cb = e.target;
+        if (cb && cb.dataset && cb.dataset.svcId) {
+          if (cb.checked) {
+            if (pendingServices.size >= MAX_ACTIVE_SERVICES) {
+              cb.checked = false;
+              showToast('Maximum ' + MAX_ACTIVE_SERVICES + ' services à portée de main', 'error');
+              return;
+            }
+            pendingServices.add(cb.dataset.svcId);
+          } else {
+            pendingServices.delete(cb.dataset.svcId);
+          }
+        }
+      };
+
+      document.getElementById('servicesModal').classList.add('open');
+    };
+    window.closeServicesModal = function() { document.getElementById('servicesModal').classList.remove('open'); pendingServices = null; };
+    window.saveServicesModal = function() {
+      if (!pendingServices) return closeServicesModal();
+      const ids = Array.from(pendingServices);
+      if (ids.length === 0) { showToast('Sélectionnez au moins 1 service', 'error'); return; }
+      saveActiveServices(ids);
+      closeServicesModal();
+      // Mettre à jour ALL_SERVICES et re-rendre les comptes
+      showToast('Services mis à jour (' + ids.length + '/' + MAX_ACTIVE_SERVICES + ')');
+      // Recharger pour appliquer les changements partout
+      renderAccounts();
+    };
+    document.getElementById('servicesModal').addEventListener('click', (e) => {
+      if (e.target === e.currentTarget) closeServicesModal();
+    });
+
     // Suppression de compte
     window.openDeleteModal = function(accId) {
       const acc = accounts.find(a => a.id === accId);
@@ -1081,6 +1272,7 @@ const nodeRequire = window.__iaoNodeRequire || window.require;
       accounts = accounts.filter(a => a.id !== id);
       if (activeAccountId === id) activeAccountId = null;
       saveCollapsed();        // purge l'état de repli du compte supprimé
+      pruneAccountOrder(accounts); // issue #6 : nettoie l'ordre des comptes supprimés
       saveAccounts(accounts); // écrit + backup de la génération précédente (chantier C)
       renderAccounts();
       closeDeleteModal();
@@ -1268,6 +1460,76 @@ const nodeRequire = window.__iaoNodeRequire || window.require;
       }
     });
 
+    // --- Issue #6 : drag-and-drop pour réorganiser les comptes ------------
+    // Délégation d'événements sur le conteneur (même pattern que le clic).
+    // HTML5 Drag and Drop API natif — aucune dépendance externe.
+    let draggedAccId = null;
+    let draggedOverId = null;
+
+    const accountsListEl = document.getElementById('accountsList');
+
+    accountsListEl.addEventListener('dragstart', (e) => {
+      const card = e.target.closest('.account-card');
+      if (!card) return;
+      draggedAccId = card.getAttribute('data-acc');
+      card.classList.add('dragging');
+      e.dataTransfer.effectAllowed = 'move';
+      // dataTransfer.setData requis par Firefox pour initier le drag
+      try { e.dataTransfer.setData('text/plain', draggedAccId); } catch (_) { /* ignore */ }
+    });
+
+    accountsListEl.addEventListener('dragend', (e) => {
+      const card = e.target.closest('.account-card');
+      if (card) card.classList.remove('dragging');
+      // Nettoie les indicateurs visuels
+      accountsListEl.querySelectorAll('.account-card.drag-over').forEach(c => c.classList.remove('drag-over'));
+      draggedAccId = null;
+      draggedOverId = null;
+    });
+
+    accountsListEl.addEventListener('dragover', (e) => {
+      if (!draggedAccId) return;
+      e.preventDefault(); // autorise le drop
+      e.dataTransfer.dropEffect = 'move';
+      const card = e.target.closest('.account-card');
+      if (!card || card.getAttribute('data-acc') === draggedAccId) return;
+      const overId = card.getAttribute('data-acc');
+      if (draggedOverId !== overId) {
+        // Nettoie l'ancien indicateur
+        if (draggedOverId) {
+          const old = accountsListEl.querySelector('.account-card[data-acc="' + CSS.escape(draggedOverId) + '"]');
+          if (old) old.classList.remove('drag-over');
+        }
+        card.classList.add('drag-over');
+        draggedOverId = overId;
+      }
+    });
+
+    accountsListEl.addEventListener('dragleave', (e) => {
+      // Nettoie seulement si on quitte vraiment le conteneur
+      if (!accountsListEl.contains(e.relatedTarget)) {
+        accountsListEl.querySelectorAll('.account-card.drag-over').forEach(c => c.classList.remove('drag-over'));
+        draggedOverId = null;
+      }
+    });
+
+    accountsListEl.addEventListener('drop', (e) => {
+      if (!draggedAccId || !draggedOverId || draggedAccId === draggedOverId) return;
+      e.preventDefault();
+
+      // Reconstruit l'ordre : prend l'ordre actuel, déplace draggedAccId
+      // à la position de draggedOverId.
+      const currentOrder = sortAccountsByOrder(accounts).map(a => a.id);
+      const fromIdx = currentOrder.indexOf(draggedAccId);
+      const toIdx = currentOrder.indexOf(draggedOverId);
+      if (fromIdx === -1 || toIdx === -1 || fromIdx === toIdx) return;
+
+      currentOrder.splice(fromIdx, 1);
+      currentOrder.splice(toIdx, 0, draggedAccId);
+      saveAccountOrder(currentOrder);
+      renderAccounts();
+    });
+
     document.getElementById('paletteResults').addEventListener('click', (e) => {
       const item = e.target.closest('[data-acc]');
       if (!item) return;
@@ -1405,6 +1667,9 @@ const nodeRequire = window.__iaoNodeRequire || window.require;
       }
       lastCdMinute = minute;
     }, 1000);
+
+    // Issue #6 : nettoie l'ordre personnalisé des comptes supprimés/importés
+    pruneAccountOrder(accounts);
 
     renderAccounts();
 
@@ -2001,6 +2266,9 @@ const UI_ACTIONS = {
   'ui-toggleIdePanel': 'toggleIdePanel',
   'ui-openModal': 'openModal',
   'ui-openHelpModal': 'openHelpModal',
+  'ui-openServicesModal': 'openServicesModal',
+  'ui-closeServicesModal': 'closeServicesModal',
+  'ui-saveServicesModal': 'saveServicesModal',
   'ui-openSchedulerModal': 'openSchedulerModal',
   'ui-openSettingsModal': 'openSettingsModal',
   'ui-exportAccountsToFile': 'exportAccountsToFile',
